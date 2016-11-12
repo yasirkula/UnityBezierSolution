@@ -141,6 +141,8 @@ public class BezierSplineEditor : Editor
 		{
 			Undo.RecordObject( spline, "Toggle Loop" );
 			spline.loop = loop;
+
+			SceneView.RepaintAll();
 		}
 
 		EditorGUILayout.Space();
@@ -151,12 +153,16 @@ public class BezierSplineEditor : Editor
 		{
 			Undo.RecordObject( spline, "Auto Construct Spline" );
 			spline.AutoConstructSpline();
+
+			SceneView.RepaintAll();
 		}
 
 		if( GUILayout.Button( "Auto Construct Spline (method #2)" ) )
 		{
 			Undo.RecordObject( spline, "Auto Construct Spline" );
 			spline.AutoConstructSpline2();
+
+			SceneView.RepaintAll();
 		}
 
 		GUI.color = c;
@@ -187,6 +193,8 @@ public class BezierSplineEditor : Editor
 					Undo.IncrementCurrentGroup();
 					Undo.RecordObject( spline, "Change Selected Point" );
 					selectedEndPointIndex = newIndex;
+
+					SceneView.RepaintAll();
 				}
 			}
 			GUILayout.Box( "Selected Point: " + selectedEndPointIndex.index + " / " + ( spline.Count - 1 ), GUILayout.ExpandWidth( true ) );
@@ -206,6 +214,8 @@ public class BezierSplineEditor : Editor
 					Undo.IncrementCurrentGroup();
 					Undo.RecordObject( spline, "Change Selected Point" );
 					selectedEndPointIndex = newIndex;
+
+					SceneView.RepaintAll();
 				}
 			}
 			GUILayout.EndHorizontal();
@@ -214,6 +224,8 @@ public class BezierSplineEditor : Editor
 			{
 				Undo.RecordObject( spline, "Deselect Selected Point" );
 				selectedEndPointIndex = -1;
+
+				SceneView.RepaintAll();
 
 				return;
 			}
@@ -228,6 +240,8 @@ public class BezierSplineEditor : Editor
 					Undo.RecordObject( spline, "Change point index" );
 					spline.SwapPointsAt( selectedEndPointIndex, selectedEndPointIndex - 1 );
 					selectedEndPointIndex = selectedEndPointIndex - 1;
+
+					SceneView.RepaintAll();
 				}
 			}
 
@@ -239,6 +253,8 @@ public class BezierSplineEditor : Editor
 					Undo.RecordObject( spline, "Change point index" );
 					spline.SwapPointsAt( selectedEndPointIndex, selectedEndPointIndex + 1 );
 					selectedEndPointIndex = selectedEndPointIndex + 1;
+
+					SceneView.RepaintAll();
 				}
 			}
 
@@ -271,6 +287,8 @@ public class BezierSplineEditor : Editor
 			{
 				Undo.RecordObject( spline, "Change Point Handle Mode" );
 				selectedEndPoint.handleMode = handleMode;
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUI.BeginChangeCheck();
@@ -279,6 +297,8 @@ public class BezierSplineEditor : Editor
 			{
 				Undo.RecordObject( spline, "Change Point Position" );
 				selectedEndPoint.localPosition = position;
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUI.BeginChangeCheck();
@@ -287,6 +307,8 @@ public class BezierSplineEditor : Editor
 			{
 				Undo.RecordObject( spline, "Change Point Rotation" );
 				selectedEndPoint.localEulerAngles = eulerAngles;
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUI.BeginChangeCheck();
@@ -295,6 +317,8 @@ public class BezierSplineEditor : Editor
 			{
 				Undo.RecordObject( spline, "Change Point Scale" );
 				selectedEndPoint.localScale = scale;
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUILayout.Space();
@@ -305,6 +329,8 @@ public class BezierSplineEditor : Editor
 			{
 				Undo.RecordObject( spline, "Change Point Position" );
 				selectedEndPoint.precedingControlPointLocalPosition = position;
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUI.BeginChangeCheck();
@@ -313,6 +339,8 @@ public class BezierSplineEditor : Editor
 			{
 				Undo.RecordObject( spline, "Change Point Position" );
 				selectedEndPoint.followingControlPointLocalPosition = position;
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUILayout.Space();
@@ -323,6 +351,8 @@ public class BezierSplineEditor : Editor
 				Vector3 precedingControlPointLocalPos = selectedEndPoint.precedingControlPointLocalPosition;
 				selectedEndPoint.precedingControlPointLocalPosition = selectedEndPoint.followingControlPointLocalPosition;
 				selectedEndPoint.followingControlPointLocalPosition = precedingControlPointLocalPos;
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUILayout.Space();
@@ -334,6 +364,8 @@ public class BezierSplineEditor : Editor
 			if( GUILayout.Button( "Reset Point" ) )
 			{
 				ResetEndPointAt( selectedEndPointIndex );
+
+				SceneView.RepaintAll();
 			}
 
 			EditorGUILayout.Space();
@@ -583,6 +615,8 @@ public class BezierSplineEditor : Editor
 		spline.InsertNewPointAt( index );
 
 		selectedEndPointIndex = index;
+
+		SceneView.RepaintAll();
 	}
 
 	private void DuplicatePointAt( int index )
@@ -594,6 +628,8 @@ public class BezierSplineEditor : Editor
 		spline.InsertNewPointAt( index + 1, duplicatePoint );
 
 		selectedEndPointIndex = index + 1;
+
+		SceneView.RepaintAll();
 	}
 
 	private void RemovePointAt( int index )
@@ -604,6 +640,8 @@ public class BezierSplineEditor : Editor
 
 		if( selectedEndPointIndex >= spline.Count )
 			selectedEndPointIndex = spline.Count - 1;
+
+		SceneView.RepaintAll();
 	}
 
 	private Vector3 FindSelectedPointPosition()
