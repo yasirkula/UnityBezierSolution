@@ -12,7 +12,7 @@ This asset is a means to create bezier splines in editor and/or during runtime: 
 
 If you are using a previous version of this plugin, you should first export your splines in JSON format in order not to lose your current splines.
 
-To export your splines, you should copy [(Upgrade/BezierSplineExport.cs)](Upgrade/BezierSplineExport.cs) to the Assets/Editor folder of your project (create it if not exists). Afterwards, select a spline in your scene, click the cog icon of Bezier Spline component in Inspector and select *Export*. Repeat the process for all your splines.
+To export your splines, you should copy [Upgrade/BezierSplineExport.cs](Upgrade/BezierSplineExport.cs) to the Assets/Editor folder of your project (create it if not exists). Afterwards, select a spline in your scene, click the cog icon of Bezier Spline component in Inspector and select *Export*. Repeat the process for all your splines.
 
 After exporting your splines, upgrade the plugin by importing Bezier.unitypackage to your project. It is recommended that you delete Assets/Plugins/BezierSolution folder first for a fresh upgrade. Finally, to bring your splines back to life, use the *Import* button in the Bezier Spline component's context menu.
 
@@ -30,7 +30,7 @@ The user interface for the spline editor should be pretty self-explanatory. Howe
 
 **Loop**: connects the first end point and the last end point of the spline
 
-**Handle Mode**: control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ).
+**Handle Mode**: control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)
 
 **Auto Construct Spline**: auto adjusts the control points of end points to form a smooth spline that goes through the end points you set. There are 2 different implementations for it, with each giving a slightly different output (see *Auto construct the spline* section below)
 
