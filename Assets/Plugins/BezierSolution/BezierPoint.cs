@@ -1,352 +1,242 @@
 ﻿using UnityEngine;
 
-[System.Serializable]
-public class BezierPoint
+namespace BezierSolution
 {
-	public enum HandleMode { Free, Aligned, Mirrored };
-
-	[SerializeField]
-	[HideInInspector]
-	private BezierSpline spline;
-
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_localPosition;
-	public Vector3 localPosition
+	public class BezierPoint : MonoBehaviour
 	{
-		get
-		{
-			return m_localPosition;
-		}
-		set
-		{
-			m_localPosition = value;
+		public enum HandleMode { Free, Aligned, Mirrored };
 
-			Revalidate();
+		public Vector3 localPosition
+		{
+			get { return transform.localPosition; }
+			set { transform.localPosition = value; }
 		}
-	}
 
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_position;
-	public Vector3 position
-	{
-		get
+		[SerializeField]
+		[HideInInspector]
+		private Vector3 m_position;
+		public Vector3 position
 		{
-			return m_position;
-		}
-		set
-		{
-			m_position = value;
-			m_localPosition = spline.transform.InverseTransformPoint( m_position );
-
-			Revalidate( false );
-		}
-	}
-
-	[SerializeField]
-	[HideInInspector]
-	private Quaternion m_localRotation;
-	public Quaternion localRotation
-	{
-		get
-		{
-			return m_localRotation;
-		}
-		set
-		{
-			m_localRotation = value;
-			m_localEulerAngles = m_localRotation.eulerAngles;
-
-			Revalidate();
-		}
-	}
-
-	public Quaternion rotation
-	{
-		get
-		{
-			return spline.transform.rotation * localRotation;
-		}
-		set
-		{
-			localRotation = Quaternion.Inverse( spline.transform.rotation ) * value;
-		}
-	}
-
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_localEulerAngles;
-	public Vector3 localEulerAngles
-	{
-		get
-		{
-			return m_localEulerAngles;
-		}
-		set
-		{
-			m_localEulerAngles = value;
-			m_localRotation = Quaternion.Euler( m_localEulerAngles );
-
-			Revalidate();
-		}
-	}
-
-	public Vector3 eulerAngles
-	{
-		get
-		{
-			return rotation.eulerAngles;
-		}
-		set
-		{
-			rotation = Quaternion.Euler( value );
-		}
-	}
-
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_localScale;
-	public Vector3 localScale
-	{
-		get
-		{
-			return m_localScale;
-		}
-		set
-		{
-			m_localScale = value;
-
-			Revalidate();
-		}
-	}
-
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_precedingControlPointLocalPosition;
-	public Vector3 precedingControlPointLocalPosition
-	{
-		get
-		{
-			return m_precedingControlPointLocalPosition;
-		}
-		set
-		{
-			Matrix4x4 localToWorldMatrix = this.localToWorldMatrix;
-
-			m_precedingControlPointLocalPosition = value;
-			m_precedingControlPointPosition = localToWorldMatrix.MultiplyPoint3x4( value );
-
-			if( m_handleMode == HandleMode.Aligned )
+			get
 			{
-				m_followingControlPointLocalPosition = -m_precedingControlPointLocalPosition.normalized * m_followingControlPointLocalPosition.magnitude;
-				m_followingControlPointPosition = localToWorldMatrix.MultiplyPoint3x4( m_followingControlPointLocalPosition );
+				if( transform.hasChanged )
+					Revalidate();
+
+				return m_position;
 			}
-			else if( m_handleMode == HandleMode.Mirrored )
+			set { transform.position = value; }
+		}
+		
+		public Quaternion localRotation
+		{
+			get { return transform.localRotation; }
+			set { transform.localRotation = value; }
+		}
+
+		public Quaternion rotation
+		{
+			get { return transform.rotation; }
+			set { transform.rotation = value; }
+		}
+
+		public Vector3 localEulerAngles
+		{
+			get { return transform.localEulerAngles; }
+			set { transform.localEulerAngles = value; }
+		}
+
+		public Vector3 eulerAngles
+		{
+			get { return transform.eulerAngles; }
+			set { transform.eulerAngles = value; }
+		}
+		
+		public Vector3 localScale
+		{
+			get { return transform.localScale; }
+			set { transform.localScale = value; }
+		}
+
+		[SerializeField]
+		private Vector3 m_precedingControlPointLocalPosition = Vector3.left;
+		public Vector3 precedingControlPointLocalPosition
+		{
+			get
 			{
-				m_followingControlPointLocalPosition = -m_precedingControlPointLocalPosition;
-				m_followingControlPointPosition = localToWorldMatrix.MultiplyPoint3x4( m_followingControlPointLocalPosition );
+				return m_precedingControlPointLocalPosition;
+			}
+			set
+			{
+				m_precedingControlPointLocalPosition = value;
+				m_precedingControlPointPosition = transform.TransformPoint( value );
+
+				if( m_handleMode == HandleMode.Aligned )
+				{
+					m_followingControlPointLocalPosition = -m_precedingControlPointLocalPosition.normalized * m_followingControlPointLocalPosition.magnitude;
+					m_followingControlPointPosition = transform.TransformPoint( m_followingControlPointLocalPosition );
+				}
+				else if( m_handleMode == HandleMode.Mirrored )
+				{
+					m_followingControlPointLocalPosition = -m_precedingControlPointLocalPosition;
+					m_followingControlPointPosition = transform.TransformPoint( m_followingControlPointLocalPosition );
+				}
 			}
 		}
-	}
 
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_precedingControlPointPosition;
-	public Vector3 precedingControlPointPosition
-	{
-		get
+		[SerializeField]
+		[HideInInspector]
+		private Vector3 m_precedingControlPointPosition;
+		public Vector3 precedingControlPointPosition
 		{
-			return m_precedingControlPointPosition;
-		}
-		set
-		{
-			Matrix4x4 worldToLocalMatrix = this.worldToLocalMatrix;
-
-			m_precedingControlPointPosition = value;
-			m_precedingControlPointLocalPosition = worldToLocalMatrix.MultiplyPoint3x4( value );
-
-			if( m_handleMode == HandleMode.Aligned )
+			get
 			{
-				m_followingControlPointPosition = m_position - ( m_precedingControlPointPosition - m_position ).normalized *
-															   ( m_followingControlPointPosition - m_position ).magnitude;
-				m_followingControlPointLocalPosition = worldToLocalMatrix.MultiplyPoint3x4( m_followingControlPointPosition );
+				if( transform.hasChanged )
+					Revalidate();
+
+				return m_precedingControlPointPosition;
 			}
-			else if( m_handleMode == HandleMode.Mirrored )
+			set
 			{
-				m_followingControlPointPosition = 2f * m_position - m_precedingControlPointPosition;
-				m_followingControlPointLocalPosition = worldToLocalMatrix.MultiplyPoint3x4( m_followingControlPointPosition );
-			}
-		}
-	}
+				m_precedingControlPointPosition = value;
+				m_precedingControlPointLocalPosition = transform.InverseTransformPoint( value );
 
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_followingControlPointLocalPosition;
-	public Vector3 followingControlPointLocalPosition
-	{
-		get
-		{
-			return m_followingControlPointLocalPosition;
-		}
-		set
-		{
-			Matrix4x4 localToWorldMatrix = this.localToWorldMatrix;
+				if( transform.hasChanged )
+				{
+					m_position = transform.position;
+					transform.hasChanged = false;
+				}
 
-			m_followingControlPointLocalPosition = value;
-			m_followingControlPointPosition = localToWorldMatrix.MultiplyPoint3x4( value );
-
-			if( m_handleMode == HandleMode.Aligned )
-			{
-				m_precedingControlPointLocalPosition = -m_followingControlPointLocalPosition.normalized * m_precedingControlPointLocalPosition.magnitude;
-				m_precedingControlPointPosition = localToWorldMatrix.MultiplyPoint3x4( m_precedingControlPointLocalPosition );
-			}
-			else if( m_handleMode == HandleMode.Mirrored )
-			{
-				m_precedingControlPointLocalPosition = -m_followingControlPointLocalPosition;
-				m_precedingControlPointPosition = localToWorldMatrix.MultiplyPoint3x4( m_precedingControlPointLocalPosition );
+				if( m_handleMode == HandleMode.Aligned )
+				{
+					m_followingControlPointPosition = m_position - ( m_precedingControlPointPosition - m_position ).normalized *
+																   ( m_followingControlPointPosition - m_position ).magnitude;
+					m_followingControlPointLocalPosition = transform.InverseTransformPoint( m_followingControlPointPosition );
+				}
+				else if( m_handleMode == HandleMode.Mirrored )
+				{
+					m_followingControlPointPosition = 2f * m_position - m_precedingControlPointPosition;
+					m_followingControlPointLocalPosition = transform.InverseTransformPoint( m_followingControlPointPosition );
+				}
 			}
 		}
-	}
-	
-	[SerializeField]
-	[HideInInspector]
-	private Vector3 m_followingControlPointPosition;
-	public Vector3 followingControlPointPosition
-	{
-		get
-		{
-			return m_followingControlPointPosition;
-		}
-		set
-		{
-			Matrix4x4 worldToLocalMatrix = this.worldToLocalMatrix;
 
-			m_followingControlPointPosition = value;
-			m_followingControlPointLocalPosition = worldToLocalMatrix.MultiplyPoint3x4( value );
-
-			if( m_handleMode == HandleMode.Aligned )
+		[SerializeField]
+		private Vector3 m_followingControlPointLocalPosition = Vector3.right;
+		public Vector3 followingControlPointLocalPosition
+		{
+			get
 			{
-				m_precedingControlPointPosition = m_position - ( m_followingControlPointPosition - m_position ).normalized * 
-																( m_precedingControlPointPosition - m_position ).magnitude;
-				m_precedingControlPointLocalPosition = worldToLocalMatrix.MultiplyPoint3x4( m_precedingControlPointPosition );
+				return m_followingControlPointLocalPosition;
 			}
-			else if( m_handleMode == HandleMode.Mirrored )
+			set
 			{
-				m_precedingControlPointPosition = 2f * m_position - m_followingControlPointPosition;
-				m_precedingControlPointLocalPosition = worldToLocalMatrix.MultiplyPoint3x4( m_precedingControlPointPosition );
+				m_followingControlPointLocalPosition = value;
+				m_followingControlPointPosition = transform.TransformPoint( value );
+
+				if( m_handleMode == HandleMode.Aligned )
+				{
+					m_precedingControlPointLocalPosition = -m_followingControlPointLocalPosition.normalized * m_precedingControlPointLocalPosition.magnitude;
+					m_precedingControlPointPosition = transform.TransformPoint( m_precedingControlPointLocalPosition );
+				}
+				else if( m_handleMode == HandleMode.Mirrored )
+				{
+					m_precedingControlPointLocalPosition = -m_followingControlPointLocalPosition;
+					m_precedingControlPointPosition = transform.TransformPoint( m_precedingControlPointLocalPosition );
+				}
 			}
 		}
-	}
 
-	[SerializeField]
-	[HideInInspector]
-	private HandleMode m_handleMode;
-	public HandleMode handleMode
-	{
-		get
+		[SerializeField]
+		[HideInInspector]
+		private Vector3 m_followingControlPointPosition;
+		public Vector3 followingControlPointPosition
 		{
-			return m_handleMode;
+			get
+			{
+				if( transform.hasChanged )
+					Revalidate();
+
+				return m_followingControlPointPosition;
+			}
+			set
+			{
+				m_followingControlPointPosition = value;
+				m_followingControlPointLocalPosition = transform.InverseTransformPoint( value );
+
+				if( transform.hasChanged )
+				{
+					m_position = transform.position;
+					transform.hasChanged = false;
+				}
+
+				if( m_handleMode == HandleMode.Aligned )
+				{
+					m_precedingControlPointPosition = m_position - ( m_followingControlPointPosition - m_position ).normalized *
+																	( m_precedingControlPointPosition - m_position ).magnitude;
+					m_precedingControlPointLocalPosition = transform.InverseTransformPoint( m_precedingControlPointPosition );
+				}
+				else if( m_handleMode == HandleMode.Mirrored )
+				{
+					m_precedingControlPointPosition = 2f * m_position - m_followingControlPointPosition;
+					m_precedingControlPointLocalPosition = transform.InverseTransformPoint( m_precedingControlPointPosition );
+				}
+			}
 		}
-		set
+
+		[SerializeField]
+		[HideInInspector]
+		private HandleMode m_handleMode = HandleMode.Mirrored;
+		public HandleMode handleMode
 		{
-			m_handleMode = value;
+			get
+			{
+				return m_handleMode;
+			}
+			set
+			{
+				m_handleMode = value;
 
-			if( value == HandleMode.Aligned || value == HandleMode.Mirrored )
-				precedingControlPointLocalPosition = m_precedingControlPointLocalPosition;
+				if( value == HandleMode.Aligned || value == HandleMode.Mirrored )
+					precedingControlPointLocalPosition = m_precedingControlPointLocalPosition;
+			}
 		}
-	}
 
-	public Matrix4x4 localToWorldMatrix
-	{
-		get
+		private void Awake()
 		{
-			Matrix4x4 selfTransformationMatrix = Matrix4x4.identity;
-			selfTransformationMatrix.SetTRS( m_localPosition, m_localRotation, m_localScale );
-
-			return spline.localToWorldMatrix * selfTransformationMatrix;
+			transform.hasChanged = true;
 		}
-	}
 
-	public Matrix4x4 worldToLocalMatrix
-	{
-		get
+		public void CopyTo( BezierPoint other )
 		{
-			return localToWorldMatrix.inverse;
+			other.transform.localPosition = transform.localPosition;
+			other.transform.localRotation = transform.localRotation;
+			other.transform.localScale = transform.localScale;
+
+			other.m_handleMode = m_handleMode;
+
+			other.m_precedingControlPointLocalPosition = m_precedingControlPointLocalPosition;
+			other.m_followingControlPointLocalPosition = m_followingControlPointLocalPosition;
 		}
-	}
 
-	public BezierPoint( BezierSpline spline ) : this( spline, Vector3.zero )
-	{
-	}
+		private void Revalidate()
+		{
+			m_position = transform.position;
+			m_precedingControlPointPosition = transform.TransformPoint( m_precedingControlPointLocalPosition );
+			m_followingControlPointPosition = transform.TransformPoint( m_followingControlPointLocalPosition );
 
-	public BezierPoint( BezierSpline spline, Vector3 localPosition )
-	{
-		this.spline = spline;
+			transform.hasChanged = false;
+		}
+		
+		public void Reset()
+		{
+			localPosition = Vector3.zero;
+			localRotation = Quaternion.identity;
+			localScale = Vector3.one;
 
-		m_localPosition = localPosition;
-		m_localRotation = Quaternion.identity;
-		m_localEulerAngles = Vector3.zero;
-		m_localScale = Vector3.one;
+			precedingControlPointLocalPosition = Vector3.left;
+			followingControlPointLocalPosition = Vector3.right;
 
-		m_precedingControlPointLocalPosition = Vector3.left;
-		m_followingControlPointLocalPosition = Vector3.right;
-
-		m_handleMode = HandleMode.Mirrored;
-
-		Revalidate();
-	}
-
-	public BezierPoint( BezierSpline spline, BezierPoint pointToCopy )
-	{
-		this.spline = spline;
-
-		this.m_localPosition = pointToCopy.m_localPosition;
-		this.m_localRotation = pointToCopy.m_localRotation;
-		this.m_localEulerAngles = pointToCopy.m_localEulerAngles;
-		this.m_localScale = pointToCopy.m_localScale;
-
-		this.m_precedingControlPointLocalPosition = pointToCopy.m_precedingControlPointLocalPosition;
-		this.m_followingControlPointLocalPosition = pointToCopy.m_followingControlPointLocalPosition;
-
-		this.m_handleMode = pointToCopy.m_handleMode;
-
-		Revalidate();
-	}
-
-	public void SetPositionRotationScale( Vector3 localPosition, Quaternion localRotation, Vector3 localScale )
-	{
-		m_localPosition = localPosition;
-		m_localRotation = localRotation;
-		m_localEulerAngles = localRotation.eulerAngles;
-		m_localScale = localScale;
-
-		Revalidate();
-	}
-
-	public void SetPositionRotationScale( Vector3 localPosition, Vector3 localEulerAngles, Vector3 localScale )
-	{
-		m_localPosition = localPosition;
-		m_localEulerAngles = localEulerAngles;
-		m_localRotation = Quaternion.Euler( localEulerAngles );
-		m_localScale = localScale;
-
-		Revalidate();
-	}
-
-	public void Revalidate( bool recalculatePosition = true )
-	{
-		Matrix4x4 splineTransformationMatrix = spline.localToWorldMatrix;
-
-		if( recalculatePosition )
-			m_position = splineTransformationMatrix.MultiplyPoint3x4( m_localPosition );
-
-		Matrix4x4 selfTransformationMatrix = Matrix4x4.identity;
-		selfTransformationMatrix.SetTRS( m_localPosition, m_localRotation, m_localScale );
-
-		selfTransformationMatrix = splineTransformationMatrix * selfTransformationMatrix;
-
-		m_precedingControlPointPosition = selfTransformationMatrix.MultiplyPoint3x4( m_precedingControlPointLocalPosition );
-		m_followingControlPointPosition = selfTransformationMatrix.MultiplyPoint3x4( m_followingControlPointLocalPosition );
+			transform.hasChanged = true;
+		}
 	}
 }

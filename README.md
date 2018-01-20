@@ -1,15 +1,137 @@
 # Unity Bezier Solution
 
-![Bezier In Action](https://yasirkula.files.wordpress.com/2016/11/splinegif.gif "Bezier In Action")
+![intro](Images/1.png)
 
 **Forum Thread:** https://forum.unity3d.com/threads/an-open-source-bezier-spline-solution.440742/
 
-### A. ABOUT
+### ABOUT
 
-This asset is a means to create bezier splines in editor and/or during runtime. Splines can be created and edited visually in the editor, or by code during runtime. Each spline uses only a single GameObject.
+This asset is a means to create bezier splines in editor and/or during runtime: splines can be created and edited visually in the editor, or by code during runtime.
 
-### B. HOW TO
+### UPGRADING FROM PREVIOUS VERSIONS
 
-Just follow "GameObject - Bezier Spline" to create a new spline and you are good to go! See *README.pdf* for more information...
+If you are using a previous version of this plugin, you should first export your splines in JSON format in order not to lose your current splines.
 
-![Bezier Editor](https://yasirkula.files.wordpress.com/2016/11/splineeditor.png "Bezier Editor")
+To export your splines, you should copy [(Upgrade/BezierSplineExport.cs)](Upgrade/BezierSplineExport.cs) to the Assets/Editor folder of your project (create it if not exists). Afterwards, select a spline in your scene, click the cog icon of Bezier Spline component in Inspector and select *Export*. Repeat the process for all your splines.
+
+After exporting your splines, upgrade the plugin by importing Bezier.unitypackage to your project. It is recommended that you delete Assets/Plugins/BezierSolution folder first for a fresh upgrade. Finally, to bring your splines back to life, use the *Import* button in the Bezier Spline component's context menu.
+
+### CREATING & EDITING A NEW SPLINE IN EDITOR
+
+To create a new spline in the editor, follow "GameObject - Bezier Spline".
+
+Now you can select the end points of the spline in the Scene view and translate/rotate/scale or delete/duplicate them as you wish (each end point has 2 control points, which can also be translated):
+
+![translate](Images/2.png)
+
+The user interface for the spline editor should be pretty self-explanatory. However, if I were to mention a couple of things:
+
+![inspector](Images/3.png)
+
+**Loop**: connects the first end point and the last end point of the spline
+
+**Handle Mode**: control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ).
+
+**Auto Construct Spline**: auto adjusts the control points of end points to form a smooth spline that goes through the end points you set. There are 2 different implementations for it, with each giving a slightly different output (see *Auto construct the spline* section below)
+
+### CREATING & EDITING A NEW SPLINE BY CODE
+
+- **Create a new bezier spline**
+
+Simply create a new GameObject, attach a BezierSpline component to it (BezierSpline uses *BezierSolution* namespace) and initialize the spline with a minimum of two end points:
+
+```csharp
+BezierSpline spline = new GameObject().AddComponent<BezierSpline>();
+spline.Initialize( 2 );
+```
+
+- **Populate the spline**
+
+`BezierPoint InsertNewPointAt( int index )`: adds a new end point to the spline and returns it
+
+`BezierPoint DuplicatePointAt( int index )`: duplicates an existing end point and returns it
+
+`void RemovePointAt( int index )`: removes an end point from the spline
+
+`void SwapPointsAt( int index1, int index2 )`: swaps indices of two end points
+
+`int IndexOf( BezierPoint point )`: returns the index of an end point
+
+- **Shape the spline**
+
+You can change the position, rotation and scale values of end points and the positions of their control points to reshape the spline.
+
+End points have the following properties to store their transformational data: position, localPosition, rotation, localRotation, eulerAngles, localEulerAngles and localScale.
+
+Positions of control points can be tweaked using the following properties in BezierPoint: precedingControlPointPosition, precedingControlPointLocalPosition, followingControlPointPosition and followingControlPointLocalPosition. The local positions are relative to their corresponding end points.
+
+```csharp
+// Set first end point's (world) position to 2,3,5
+spline[0].position = new Vector3( 2, 3, 5 );
+
+// Set second end point's local position to 7,11,13
+spline[1].localPosition = new Vector3( 7, 11, 13 );
+
+// Set handle mode of first end point to Free to independently adjust each control point
+spline[0].handleMode = BezierPoint.HandleMode.Free;
+
+// Reposition the control points of the first end point
+spline[0].precedingControlPointLocalPosition = new Vector3( 0, 0, 1 );
+spline[0].followingControlPointPosition = spline[1].position;
+```
+
+- **Auto construct the spline**
+
+If you don't want to position all the control points manually, but rather generate a nice-looking "continuous" spline that goes through the end points you have created, you can call either AutoConstructSpline() or AutoConstructSpline2(). These methods are implementations of some algorithms found on the internet (and credited in the source code). There is a third algorithm (*AutoConstructSpline3()*) which is not implemented, but feel free to implement it yourself!
+
+![auto-construct](Images/4.png)
+
+### UTILITY FUNCTIONS
+
+The framework comes with some utility functions. These functions are not necessarily perfect but most of the time, they get the job done. Though, if you want, you can use this framework to just create splines and then apply your own logic to them.
+
+- `Vector3 GetPoint( float normalizedT )`
+
+A spline is essentially a mathematical formula with a [0,1] clamped input (usually called *t*), which generates a point on the spline. As the name suggests, this function returns a point on the spline. As *t* goes from 0 to 1, the point moves from the first end point to the last end point (or goes back to first end point, if spline is looping).
+
+- `Vector3 GetTangent( float normalizedT )`
+
+Tangent is calculated using the first derivative of the spline formula and gives the direction of the movement at a given point on the spline. Can be used to determine which direction an object on the spline should look at at a given point.
+
+- `float GetLengthApproximately( float startNormalizedT, float endNormalizedT, float accuracy = 50f )`
+
+Calculates the approximate length of a segment of the spline. To calculate the length, the spline is divided into "accuracy" points and the Euclidean distances between these points are summed up.
+
+**Food For Thought**: BezierSpline has a Length property, which is simply a shorthand for `GetLengthApproximately( 0f, 1f )`.
+
+- `Vector3 FindNearestPointTo( Vector3 worldPos, out float normalizedT, float accuracy = 100f )`
+
+Finds the nearest point on the spline to any given point in 3D space. The normalizedT parameter is optional and it returns the parameter *t* corresponding to the resulting point. To find the nearest point, the spline is divided into "accuracy" points and the nearest point is selected. Thus, the result will not be 100% accurate but will be good enough for casual use-cases.
+
+- `Vector3 MoveAlongSpline( ref float normalizedT, float deltaMovement, int accuracy = 3 )`
+
+Moves a point (normalizedT) on the spline deltaMovement units ahead and returns the resulting point. The normalizedT parameter is passed by reference to keep track of the new *t* parameter.
+
+### OTHER COMPONENTS
+
+Framework comes with 3 additional components that may help you move objects or particles along splines. These components are located in the Utilities folder.
+
+- **BezierWalkerWithSpeed**
+
+![walker-with-speed](Images/5.png)
+
+Moves an object along a spline with constant speed. There are 3 travel modes: Once, Ping Pong and Loop. If Look Forward is selected, the object will always face forward and the smoothness of the rotation can be adjusted using the Rotation Lerp Modifier. Each time the object completes a lap, its On Path Completed () event is invoked.
+
+If the object is moving at high speed, it sometimes slows down briefly near the last end point. This effect can be counteracted by increasing Relaxation At End Points. However, if its value is too high, then the object starts skipping a small segment of the spline near the last end point.
+
+- **BezierWalkerWithTime**
+
+![walker-with-time](Images/6.png)
+
+Travels a spline in Travel Time seconds. Movement Lerp Modifier parameter defines the smoothness applied to the position of the object.
+
+- **ParticlesFollowBezier**
+
+![particles-follow-bezier](Images/7.png)
+
+Moves particles of a Particle System in the direction of a spline. Particles reach the end of the spline at the end of their lifetime. Note that the properties of Particle System like speed, Noise and Shape still affect the movement of particles. If you want the particles to strictly stick with the spline, set the particles' speed to 0.
