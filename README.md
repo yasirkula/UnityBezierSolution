@@ -30,7 +30,11 @@ The user interface for the spline editor should be pretty self-explanatory. Howe
 
 **Loop**: connects the first end point and the last end point of the spline
 
+**Draw Runtime Gizmos**: draws the spline during gameplay. Can be tweaked and customized using *DrawGizmos*/*HideGizmos* functions (see *UTILITY FUNCTIONS*)
+
 **Handle Mode**: control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)
+
+**Construct Linear Path**: constructs a completely linear path between the end points by using *Free* handle mode and adjusting the control points of end points (see *Convert spline to a linear path* section below)
 
 **Auto Construct Spline**: auto adjusts the control points of end points to form a smooth spline that goes through the end points you set. There are 2 different implementations for it, with each giving a slightly different output (see *Auto construct the spline* section below)
 
@@ -82,9 +86,15 @@ spline[0].followingControlPointPosition = spline[1].position;
 
 - **Auto construct the spline**
 
-If you don't want to position all the control points manually, but rather generate a nice-looking "continuous" spline that goes through the end points you have created, you can call either AutoConstructSpline() or AutoConstructSpline2(). These methods are implementations of some algorithms found on the internet (and credited in the source code). There is a third algorithm (*AutoConstructSpline3()*) which is not implemented, but feel free to implement it yourself!
+If you don't want to position all the control points manually, but rather generate a nice-looking "continuous" spline that goes through the end points you have created, you can call either **AutoConstructSpline()** or **AutoConstructSpline2()**. These methods are implementations of some algorithms found on the internet (and credited in the source code). There is a third algorithm (*AutoConstructSpline3()*) which is not implemented, but feel free to implement it yourself!
 
 ![auto-construct](Images/4.png)
+
+- **Convert spline to a linear path**
+
+If you want to create a linear path between the end points of the spline, you can call the **ConstructLinearPath()** function.
+
+![auto-construct](Images/4_2.png)
 
 ### UTILITY FUNCTIONS
 

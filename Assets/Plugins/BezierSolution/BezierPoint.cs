@@ -58,6 +58,7 @@ namespace BezierSolution
 		}
 
 		[SerializeField]
+		[HideInInspector]
 		private Vector3 m_precedingControlPointLocalPosition = Vector3.left;
 		public Vector3 precedingControlPointLocalPosition
 		{
@@ -121,6 +122,7 @@ namespace BezierSolution
 		}
 
 		[SerializeField]
+		[HideInInspector]
 		private Vector3 m_followingControlPointLocalPosition = Vector3.right;
 		public Vector3 followingControlPointLocalPosition
 		{

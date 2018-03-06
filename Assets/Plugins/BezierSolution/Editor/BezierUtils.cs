@@ -101,9 +101,28 @@ namespace BezierSolution
 				SceneView.RepaintAll();
 			}
 
+			EditorGUI.BeginChangeCheck();
+			bool drawGizmos = EditorGUILayout.Toggle( "Draw Runtime Gizmos", spline.drawGizmos );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				Undo.RecordObject( spline, "Toggle Draw Gizmos" );
+				spline.drawGizmos = drawGizmos;
+
+				SceneView.RepaintAll();
+			}
+
 			EditorGUILayout.Space();
 
 			GUI.color = AUTO_CONSTRUCT_SPLINE_BUTTON_COLOR;
+
+			if( GUILayout.Button( "Construct Linear Path" ) )
+			{
+				for( int i = 0; i < spline.Count; i++ )
+					Undo.RecordObject( spline[i], "Construct Linear Path" );
+
+				spline.ConstructLinearPath();
+				SceneView.RepaintAll();
+			}
 
 			if( GUILayout.Button( "Auto Construct Spline" ) )
 			{

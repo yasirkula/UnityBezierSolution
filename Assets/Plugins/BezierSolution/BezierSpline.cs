@@ -7,14 +7,14 @@ namespace BezierSolution
 	public class BezierSpline : MonoBehaviour
 	{
 		private static Material gizmoMaterial;
-
-		private bool drawGizmos = false;
-		private Color gizmoColor;
-		private float gizmoStep;
+		
+		private Color gizmoColor = Color.white;
+		private float gizmoStep = 0.05f;
 
 		private List<BezierPoint> endPoints = new List<BezierPoint>();
 		
 		public bool loop = false;
+		public bool drawGizmos = false;
 
 		public int Count { get { return endPoints.Count; } }
 		public float Length { get { return GetLengthApproximately( 0f, 1f ); } }
@@ -401,12 +401,35 @@ namespace BezierSolution
 			return GetPoint( normalizedT );
 		}
 
+		public void ConstructLinearPath()
+		{
+			for( int i = 0; i < endPoints.Count; i++ )
+			{
+				endPoints[i].handleMode = BezierPoint.HandleMode.Free;
+				
+				if( i < endPoints.Count - 1 )
+				{
+					Vector3 midPoint = ( endPoints[i].position + endPoints[i + 1].position ) * 0.5f;
+					endPoints[i].followingControlPointPosition = midPoint;
+					endPoints[i + 1].precedingControlPointPosition = midPoint;
+				}
+				else
+				{
+					Vector3 midPoint = ( endPoints[i].position + endPoints[0].position ) * 0.5f;
+					endPoints[i].followingControlPointPosition = midPoint;
+					endPoints[0].precedingControlPointPosition = midPoint;
+				}
+			}
+		}
+
 		public void AutoConstructSpline()
 		{
 			// Credit: http://www.codeproject.com/Articles/31859/Draw-a-Smooth-Curve-through-a-Set-of-2D-Points-wit
 
-			int n = endPoints.Count - 1;
+			for( int i = 0; i < endPoints.Count; i++ )
+				endPoints[i].handleMode = BezierPoint.HandleMode.Mirrored;
 
+			int n = endPoints.Count - 1;
 			if( n == 1 )
 			{
 				endPoints[0].followingControlPointPosition = ( 2 * endPoints[0].position + endPoints[1].position ) / 3f;
@@ -496,7 +519,7 @@ namespace BezierSolution
 		public void AutoConstructSpline2()
 		{
 			// Credit: http://stackoverflow.com/questions/3526940/how-to-create-a-cubic-bezier-curve-when-given-n-points-in-3d
-
+			
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
 				Vector3 pMinus1, p1, p2;
@@ -538,6 +561,7 @@ namespace BezierSolution
 				}
 
 				endPoints[i].followingControlPointPosition = endPoints[i].position + ( p1 - pMinus1 ) / 6f;
+				endPoints[i].handleMode = BezierPoint.HandleMode.Mirrored;
 
 				if( i < endPoints.Count - 1 )
 					endPoints[i + 1].precedingControlPointPosition = p1 - ( p2 - endPoints[i].position ) / 6f;
@@ -565,14 +589,6 @@ namespace BezierSolution
 		{
 			if( !drawGizmos || endPoints.Count < 2 )
 				return;
-
-#if UNITY_EDITOR
-			if( !Application.isPlaying )
-			{
-				drawGizmos = false;
-				return;
-			}
-#endif
 
 			if( !gizmoMaterial )
 			{

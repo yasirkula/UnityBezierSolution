@@ -29,11 +29,19 @@ namespace BezierSolution
 				particlesReset--;
 				if( particlesReset == 0 )
 				{
-					ParticlesFollowBezier _target = (ParticlesFollowBezier) target;
-					ParticleSystem particleSystem = _target.GetComponent<ParticleSystem>();
-					if( _target.spline != null && particleSystem != null && _target.enabled )
-						particleSystem.Clear();
+					ResetParticles( ( (ParticlesFollowBezier) target ).GetComponentsInParent<ParticlesFollowBezier>() );
+					ResetParticles( ( (ParticlesFollowBezier) target ).GetComponentsInChildren<ParticlesFollowBezier>() );
 				}
+			}
+		}
+
+		private void ResetParticles( ParticlesFollowBezier[] targets )
+		{
+			foreach( ParticlesFollowBezier target in targets )
+			{
+				ParticleSystem particleSystem = target.GetComponent<ParticleSystem>();
+				if( target.spline != null && particleSystem != null && target.enabled )
+					particleSystem.Clear();
 			}
 		}
 	}
