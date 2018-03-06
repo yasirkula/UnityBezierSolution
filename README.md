@@ -145,6 +145,7 @@ Travels a spline in Travel Time seconds. Movement Lerp Modifier parameter define
 Moves particles of a Particle System in the direction of a spline. It is recommended to set the **Simulation Space** of the Particle System to **World** for increased performance. This component affects particles in one of two ways:
 
 **Strict**: particles will strictly follow the spline. They will always be aligned to the spline and will reach the end of the spline at the end of their lifetime. This mode performs slightly better than Relaxed mode
+
 **Relaxed**: properties of the particle system like speed, Noise and Shape will affect the movement of the particles. Particles in this mode will usually look more interesting. If you want the particles to stick with the spline, though, set their speed to 0
 
 Note that if the **Resimulate** tick of the Particle System is selected, particles may move in a chaotic way for a short time while changing the properties of the particle system from the Inspector.
