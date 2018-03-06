@@ -6,6 +6,12 @@ namespace BezierSolution
 	[ExecuteInEditMode]
 	public class BezierSpline : MonoBehaviour
 	{
+		private static Material gizmoMaterial;
+
+		private bool drawGizmos = false;
+		private Color gizmoColor;
+		private float gizmoStep;
+
 		private List<BezierPoint> endPoints = new List<BezierPoint>();
 		
 		public bool loop = false;
@@ -145,6 +151,18 @@ namespace BezierSolution
 		public int IndexOf( BezierPoint point )
 		{
 			return endPoints.IndexOf( point );
+		}
+
+		public void DrawGizmos( Color color, int smoothness = 4 )
+		{
+			drawGizmos = true;
+			gizmoColor = color;
+			gizmoStep = 1f / ( endPoints.Count * Mathf.Clamp( smoothness, 1, 30 ) );
+		}
+
+		public void HideGizmos()
+		{
+			drawGizmos = false;
 		}
 
 		public Vector3 GetPoint( float normalizedT )
@@ -539,6 +557,52 @@ namespace BezierSolution
 				return 0.2f;
 
 			return Mathf.Clamp( 1f / accuracy, 0.001f, 0.2f );
+		}
+
+		// Renders the spline gizmo during gameplay
+		// Credit: https://docs.unity3d.com/ScriptReference/GL.html
+		private void OnRenderObject()
+		{
+			if( !drawGizmos || endPoints.Count < 2 )
+				return;
+
+#if UNITY_EDITOR
+			if( !Application.isPlaying )
+			{
+				drawGizmos = false;
+				return;
+			}
+#endif
+
+			if( !gizmoMaterial )
+			{
+				Shader shader = Shader.Find( "Hidden/Internal-Colored" );
+				gizmoMaterial = new Material( shader ) { hideFlags = HideFlags.HideAndDontSave };
+				gizmoMaterial.SetInt( "_SrcBlend", (int) UnityEngine.Rendering.BlendMode.SrcAlpha );
+				gizmoMaterial.SetInt( "_DstBlend", (int) UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha );
+				gizmoMaterial.SetInt( "_Cull", (int) UnityEngine.Rendering.CullMode.Off );
+				gizmoMaterial.SetInt( "_ZWrite", 0 );
+			}
+			
+			gizmoMaterial.SetPass( 0 );
+			
+			GL.Begin( GL.LINES );
+			GL.Color( gizmoColor );
+
+			Vector3 lastPos = endPoints[0].position;
+
+			for( float i = gizmoStep; i < 1f; i += gizmoStep )
+			{
+				GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );
+				lastPos = GetPoint( i );
+				GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );
+			}
+
+			GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );
+			lastPos = GetPoint( 1f );
+			GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );
+			
+			GL.End();
 		}
 
 #if UNITY_EDITOR

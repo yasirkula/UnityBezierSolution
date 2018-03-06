@@ -112,6 +112,14 @@ Finds the nearest point on the spline to any given point in 3D space. The normal
 
 Moves a point (normalizedT) on the spline deltaMovement units ahead and returns the resulting point. The normalizedT parameter is passed by reference to keep track of the new *t* parameter.
 
+- `void DrawGizmos( Color color, int smoothness = 4 )`
+
+Starts drawing the spline during gameplay using GL lines. As *smoothness* increases, drawn spline will become smoother.
+
+- `void HideGizmos()`
+
+Stops drawing the spline during gameplay.
+
 ### OTHER COMPONENTS
 
 Framework comes with 3 additional components that may help you move objects or particles along splines. These components are located in the Utilities folder.
@@ -134,4 +142,9 @@ Travels a spline in Travel Time seconds. Movement Lerp Modifier parameter define
 
 ![particles-follow-bezier](Images/7.png)
 
-Moves particles of a Particle System in the direction of a spline. Particles reach the end of the spline at the end of their lifetime. Note that the properties of Particle System like speed, Noise and Shape still affect the movement of particles. If you want the particles to strictly stick with the spline, set the particles' speed to 0.
+Moves particles of a Particle System in the direction of a spline. It is recommended to set the **Simulation Space** of the Particle System to **World** for increased performance. This component affects particles in one of two ways:
+
+**Strict**: particles will strictly follow the spline. They will always be aligned to the spline and will reach the end of the spline at the end of their lifetime. This mode performs slightly better than Relaxed mode
+**Relaxed**: properties of the particle system like speed, Noise and Shape will affect the movement of the particles. Particles in this mode will usually look more interesting. If you want the particles to stick with the spline, though, set their speed to 0
+
+Note that if the **Resimulate** tick of the Particle System is selected, particles may move in a chaotic way for a short time while changing the properties of the particle system from the Inspector.

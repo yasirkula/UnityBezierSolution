@@ -2165,6 +2165,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spline: {fileID: 126177801}
+  followMode: 0
 --- !u!199 &1733954122
 ParticleSystemRenderer:
   serializedVersion: 3
@@ -2270,10 +2271,10 @@ ParticleSystem:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-  moveWithTransform: 0
+  moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 1
-  randomSeed: 1693632690
+  randomSeed: 1285900333
   InitialModule:
     serializedVersion: 3
     enabled: 1

@@ -6,10 +6,16 @@ namespace BezierSolution
 	[ExecuteInEditMode]
 	public class ParticlesFollowBezier : MonoBehaviour
 	{
+		private const int MAX_PARTICLE_COUNT = 25000;
+
+		public enum FollowMode { Relaxed, Strict };
+
 		public BezierSpline spline;
+		public FollowMode followMode = FollowMode.Relaxed;
 
 		private Transform cachedTransform;
 		private ParticleSystem cachedPS;
+		private ParticleSystem.MainModule cachedMainModule;
 
 		private ParticleSystem.Particle[] particles;
 		private List<Vector4> particleData;
@@ -19,8 +25,11 @@ namespace BezierSolution
 			cachedTransform = transform;
 			cachedPS = GetComponent<ParticleSystem>();
 
-			particles = new ParticleSystem.Particle[cachedPS.main.maxParticles];
-			particleData = new List<Vector4>( particles.Length );
+			cachedMainModule = cachedPS.main;
+			particles = new ParticleSystem.Particle[cachedMainModule.maxParticles];
+
+			if( followMode == FollowMode.Relaxed )
+				particleData = new List<Vector4>( particles.Length );
 		}
 
 #if UNITY_EDITOR
@@ -35,30 +44,51 @@ namespace BezierSolution
 			if( spline == null || cachedPS == null )
 				return;
 
-			bool isLocalSpace = cachedPS.main.simulationSpace != ParticleSystemSimulationSpace.World;
+			if( particles.Length < cachedMainModule.maxParticles && particles.Length < MAX_PARTICLE_COUNT )
+				particles = new ParticleSystem.Particle[Mathf.Min( cachedMainModule.maxParticles, MAX_PARTICLE_COUNT )];
 
+			bool isLocalSpace = cachedMainModule.simulationSpace != ParticleSystemSimulationSpace.World;
 			int aliveParticles = cachedPS.GetParticles( particles );
-			cachedPS.GetCustomParticleData( particleData, ParticleSystemCustomData.Custom1 );
 
-			// Credit: https://forum.unity3d.com/threads/access-to-the-particle-system-lifecycle-events.328918/#post-2295977
-			for( int i = 0; i < aliveParticles; i++ )
+			if( followMode == FollowMode.Relaxed )
 			{
-				Vector4 particleDat = particleData[i];
+				if( particleData == null )
+					particleData = new List<Vector4>( particles.Length );
 
-				Vector3 point = spline.GetPoint( 1f - ( particles[i].remainingLifetime / particles[i].startLifetime ) );
-				if( isLocalSpace )
-					point = cachedTransform.InverseTransformPoint( point );
+				cachedPS.GetCustomParticleData( particleData, ParticleSystemCustomData.Custom1 );
 
-				// Move particles alongside the spline
-				if( particleDat.w != 0f )
-					particles[i].position += point - (Vector3) particleDat;
+				// Credit: https://forum.unity3d.com/threads/access-to-the-particle-system-lifecycle-events.328918/#post-2295977
+				for( int i = 0; i < aliveParticles; i++ )
+				{
+					Vector4 particleDat = particleData[i];
+					Vector3 point = spline.GetPoint( 1f - ( particles[i].remainingLifetime / particles[i].startLifetime ) );
+					if( isLocalSpace )
+						point = cachedTransform.InverseTransformPoint( point );
 
-				particleDat = point;
-				particleDat.w = 1f;
-				particleData[i] = particleDat;
+					// Move particles alongside the spline
+					if( particleDat.w != 0f )
+						particles[i].position += point - (Vector3) particleDat;
+
+					particleDat = point;
+					particleDat.w = 1f;
+					particleData[i] = particleDat;
+				}
+
+				cachedPS.SetCustomParticleData( particleData, ParticleSystemCustomData.Custom1 );
 			}
+			else
+			{
+				Vector3 deltaPosition = cachedTransform.position - spline.GetPoint( 0f );
+				for( int i = 0; i < aliveParticles; i++ )
+				{
+					Vector3 point = spline.GetPoint( 1f - ( particles[i].remainingLifetime / particles[i].startLifetime ) ) + deltaPosition;
+					if( isLocalSpace )
+						point = cachedTransform.InverseTransformPoint( point );
 
-			cachedPS.SetCustomParticleData( particleData, ParticleSystemCustomData.Custom1 );
+					particles[i].position = point;
+				}
+			}
+			
 			cachedPS.SetParticles( particles, aliveParticles );
 		}
 	}
