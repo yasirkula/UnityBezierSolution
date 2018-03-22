@@ -2,7 +2,9 @@
 
 ![intro](Images/1.png)
 
-**Forum Thread:** https://forum.unity3d.com/threads/an-open-source-bezier-spline-solution.440742/
+**Available on Asset Store:** https://www.assetstore.unity3d.com/en/#!/content/113074
+
+**Forum Thread:** https://forum.unity.com/threads/bezier-solution-open-source.440742/
 
 ### ABOUT
 
