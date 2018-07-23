@@ -335,6 +335,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loop: 1
+  drawGizmos: 0
 --- !u!4 &126177802
 Transform:
   m_ObjectHideFlags: 0
@@ -1144,6 +1145,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loop: 1
+  drawGizmos: 0
 --- !u!4 &728216727
 Transform:
   m_ObjectHideFlags: 0
@@ -2274,7 +2276,7 @@ ParticleSystem:
   moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 1
-  randomSeed: 1285900333
+  randomSeed: 436223864
   InitialModule:
     serializedVersion: 3
     enabled: 1
@@ -5677,6 +5679,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loop: 1
+  drawGizmos: 0
 --- !u!4 &2112567398
 Transform:
   m_ObjectHideFlags: 0

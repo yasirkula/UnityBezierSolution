@@ -12,7 +12,7 @@ This asset is a means to create bezier splines in editor and/or during runtime: 
 
 ### UPGRADING FROM PREVIOUS VERSIONS
 
-If you are using a previous version of this plugin, you should first export your splines in JSON format in order not to lose your current splines.
+If you are using a previous version of this plugin that was released before 01.20.2018, you should first export your splines in JSON format in order not to lose your current splines.
 
 To export your splines, you should copy [Upgrade/BezierSplineExport.cs](Upgrade/BezierSplineExport.cs) to the Assets/Editor folder of your project (create it if not exists). Afterwards, select a spline in your scene, click the cog icon of Bezier Spline component in Inspector and select *Export*. Repeat the process for all your splines.
 

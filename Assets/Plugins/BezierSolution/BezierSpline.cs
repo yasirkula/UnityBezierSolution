@@ -53,7 +53,7 @@ namespace BezierSolution
 
 			Refresh();
 
-			for( int i = 0; i < endPoints.Count; i++ )
+			for( int i = endPoints.Count - 1; i >= 0; i-- )
 				DestroyImmediate( endPoints[i].gameObject );
 
 			endPoints.Clear();
