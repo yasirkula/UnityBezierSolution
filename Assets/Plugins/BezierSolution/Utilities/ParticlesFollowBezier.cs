@@ -64,17 +64,25 @@ namespace BezierSolution
 					Vector3 point = spline.GetPoint( 1f - ( particles[i].remainingLifetime / particles[i].startLifetime ) );
 					if( isLocalSpace )
 						point = cachedTransform.InverseTransformPoint( point );
+					
+					Vector3 startOffset = (Vector3) particleDat;
+					if (particleDat.w == 0f)
+					{
+						// We assume the particle has not travelled yet on the first update,
+						// we can now find the offset from the particle system origin
+						startOffset = transform.position - particles[i].position;
+
+						if (isLocalSpace) startOffset = cachedTransform.InverseTransformPoint(startOffset);
+
+						particleDat = startOffset;
+						particleDat.w = 1f;
+						particleData[i] = particleDat;						
+						cachedPS.SetCustomParticleData( particleData, ParticleSystemCustomData.Custom1 );
+					}
 
 					// Move particles alongside the spline
-					if( particleDat.w != 0f )
-						particles[i].position += point - (Vector3) particleDat;
-
-					particleDat = point;
-					particleDat.w = 1f;
-					particleData[i] = particleDat;
+					particles[i].position = point + startOffset;
 				}
-
-				cachedPS.SetCustomParticleData( particleData, ParticleSystemCustomData.Custom1 );
 			}
 			else
 			{
