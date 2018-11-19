@@ -3,7 +3,7 @@ using UnityEngine.Events;
 
 namespace BezierSolution
 {
-	public class BezierWalkerWithSpeed : MonoBehaviour
+	public class BezierWalkerWithSpeed : MonoBehaviour, IBezierWalker
 	{
 		public enum TravelMode { Once, Loop, PingPong };
 
@@ -15,14 +15,13 @@ namespace BezierSolution
 		public float speed = 5f;
 		private float progress = 0f;
 
+		public BezierSpline Spline { get { return spline; } }
+
 		public float NormalizedT
 		{
 			get { return progress; }
 			set { progress = value; }
 		}
-
-		[Range( 0f, 0.06f )]
-		public float relaxationAtEndPoints = 0.01f;
 
 		//public float movementLerpModifier = 10f;
 		public float rotationLerpModifier = 10f;
@@ -30,36 +29,27 @@ namespace BezierSolution
 		public bool lookForward = true;
 
 		private bool isGoingForward = true;
+		public bool MovingForward { get { return ( speed > 0f ) == isGoingForward; } }
 
 		public UnityEvent onPathCompleted = new UnityEvent();
 		private bool onPathCompletedCalledAt1 = false;
 		private bool onPathCompletedCalledAt0 = false;
 
-		void Awake()
+		private void Awake()
 		{
 			cachedTransform = transform;
 		}
 
-		void Update()
+		private void Update()
 		{
 			float targetSpeed = ( isGoingForward ) ? speed : -speed;
 
-			Vector3 targetPos;
-			// Code below uses the obsolete MoveAlongSpline function
-			//float absSpeed = Mathf.Abs( speed );
-			//if( absSpeed <= 2f )
-			//	targetPos = spline.MoveAlongSpline( ref progress, targetSpeed * Time.deltaTime, maximumError: 0f );
-			//else if( absSpeed >= 40f )
-			//	targetPos = spline.MoveAlongSpline( ref progress, targetSpeed * Time.deltaTime, increasedAccuracy: true );
-			//else
-			//	targetPos = spline.MoveAlongSpline( ref progress, targetSpeed * Time.deltaTime );
-
-			targetPos = spline.MoveAlongSpline( ref progress, targetSpeed * Time.deltaTime );
+			Vector3 targetPos = spline.MoveAlongSpline( ref progress, targetSpeed * Time.deltaTime );
 
 			cachedTransform.position = targetPos;
 			//cachedTransform.position = Vector3.Lerp( cachedTransform.position, targetPos, movementLerpModifier * Time.deltaTime );
 
-			bool movingForward = ( speed > 0f ) == isGoingForward;
+			bool movingForward = MovingForward;
 
 			if( lookForward )
 			{
@@ -74,7 +64,7 @@ namespace BezierSolution
 
 			if( movingForward )
 			{
-				if( progress >= 1f - relaxationAtEndPoints )
+				if( progress >= 1f )
 				{
 					if( !onPathCompletedCalledAt1 )
 					{
@@ -99,7 +89,7 @@ namespace BezierSolution
 			}
 			else
 			{
-				if( progress <= relaxationAtEndPoints )
+				if( progress <= 0f )
 				{
 					if( !onPathCompletedCalledAt0 )
 					{

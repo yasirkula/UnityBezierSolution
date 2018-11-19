@@ -7,18 +7,18 @@ namespace BezierSolution
 	public class BezierSpline : MonoBehaviour
 	{
 		private static Material gizmoMaterial;
-		
+
 		private Color gizmoColor = Color.white;
 		private float gizmoStep = 0.05f;
 
 		private List<BezierPoint> endPoints = new List<BezierPoint>();
-		
+
 		public bool loop = false;
 		public bool drawGizmos = false;
 
 		public int Count { get { return endPoints.Count; } }
 		public float Length { get { return GetLengthApproximately( 0f, 1f ); } }
-		
+
 		public BezierPoint this[int index]
 		{
 			get
@@ -167,14 +167,19 @@ namespace BezierSolution
 
 		public Vector3 GetPoint( float normalizedT )
 		{
-			if( normalizedT <= 0f )
-				return endPoints[0].position;
-			else if( normalizedT >= 1f )
+			if( !loop )
 			{
-				if( loop )
+				if( normalizedT <= 0f )
 					return endPoints[0].position;
-
-				return endPoints[endPoints.Count - 1].position;
+				else if( normalizedT >= 1f )
+					return endPoints[endPoints.Count - 1].position;
+			}
+			else
+			{
+				if( normalizedT < 0f )
+					normalizedT += 1f;
+				else if( normalizedT >= 1f )
+					normalizedT -= 1f;
 			}
 
 			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
@@ -201,17 +206,22 @@ namespace BezierSolution
 
 		public Vector3 GetTangent( float normalizedT )
 		{
-			if( normalizedT <= 0f )
-				return 3f * ( endPoints[0].followingControlPointPosition - endPoints[0].position );
-			else if( normalizedT >= 1f )
+			if( !loop )
 			{
-				if( loop )
-					return 3f * ( endPoints[0].position - endPoints[0].precedingControlPointPosition );
-				else
+				if( normalizedT <= 0f )
+					return 3f * ( endPoints[0].followingControlPointPosition - endPoints[0].position );
+				else if( normalizedT >= 1f )
 				{
 					int index = endPoints.Count - 1;
 					return 3f * ( endPoints[index].position - endPoints[index].precedingControlPointPosition );
 				}
+			}
+			else
+			{
+				if( normalizedT < 0f )
+					normalizedT += 1f;
+				else if( normalizedT >= 1f )
+					normalizedT -= 1f;
 			}
 
 			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
@@ -295,108 +305,13 @@ namespace BezierSolution
 			return result;
 		}
 
-		// Obsolete method, changed with a faster and more accurate variant
-		//public Vector3 MoveAlongSpline( ref float normalizedT, float deltaMovement, 
-		//								bool increasedAccuracy = false, int maximumNumberOfChecks = 20, float maximumError = 0.001f )
-		//{
-		//	// Maybe that one is a better approach? https://www.geometrictools.com/Documentation/MovingAlongCurveSpecifiedSpeed.pdf
-
-		//	if( Mathf.Approximately( deltaMovement, 0f ) )
-		//		return GetPoint( normalizedT );
-
-		//	if( maximumNumberOfChecks < 3 )
-		//		maximumNumberOfChecks = 3;
-
-		//	normalizedT = Mathf.Clamp01( normalizedT );
-
-		//	Vector3 point = GetPoint( normalizedT );
-		//	float deltaMovementSqr = deltaMovement * deltaMovement;
-		//	bool isForwardDir = deltaMovement > 0;
-
-		//	float bestNormalizedT;
-		//	float maxNormalizedT, minNormalizedT;
-
-		//	float error;
-		//	Vector3 result;
-
-		//	if( isForwardDir )
-		//	{
-		//		bestNormalizedT = ( 1f + normalizedT ) * 0.5f;
-
-		//		maxNormalizedT = 1f;
-		//		minNormalizedT = normalizedT;
-		//	}
-		//	else
-		//	{
-		//		bestNormalizedT = normalizedT * 0.5f;
-
-		//		maxNormalizedT = normalizedT;
-		//		minNormalizedT = 0f;
-		//	}
-
-		//	result = GetPoint( bestNormalizedT );
-
-		//	if( !increasedAccuracy )
-		//	{
-		//		error = ( result - point ).sqrMagnitude - deltaMovementSqr;
-		//	}
-		//	else
-		//	{
-		//		float distance = GetLengthApproximately( normalizedT, bestNormalizedT, 10f );
-		//		error = distance * distance - deltaMovementSqr;
-		//	}
-
-		//	if( !isForwardDir )
-		//		error = -error;
-
-		//	if( Mathf.Abs( error ) > maximumError )
-		//	{
-		//		for( int i = 0; i < maximumNumberOfChecks; i++ )
-		//		{
-		//			if( error > 0 )
-		//			{
-		//				maxNormalizedT = bestNormalizedT;
-		//				bestNormalizedT = ( bestNormalizedT + minNormalizedT ) * 0.5f;
-		//			}
-		//			else
-		//			{
-		//				minNormalizedT = bestNormalizedT;
-		//				bestNormalizedT = ( bestNormalizedT + maxNormalizedT ) * 0.5f;
-		//			}
-
-		//			result = GetPoint( bestNormalizedT );
-
-		//			if( !increasedAccuracy )
-		//			{
-		//				error = ( result - point ).sqrMagnitude - deltaMovementSqr;
-		//			}
-		//			else
-		//			{
-		//				float distance = GetLengthApproximately( normalizedT, bestNormalizedT, 10f );
-		//				error = distance * distance - deltaMovementSqr;
-		//			}
-
-		//			if( !isForwardDir )
-		//				error = -error;
-
-		//			if( Mathf.Abs( error ) <= maximumError )
-		//			{
-		//				break;
-		//			}
-		//		}
-		//	}
-
-		//	normalizedT = bestNormalizedT;
-		//	return result;
-		//}
-
 		public Vector3 MoveAlongSpline( ref float normalizedT, float deltaMovement, int accuracy = 3 )
 		{
 			// Credit: https://gamedev.stackexchange.com/a/27138
 
-			float _1OverCount = 1f / endPoints.Count;
+			float constant = deltaMovement / ( ( loop ? endPoints.Count : endPoints.Count - 1 ) * accuracy );
 			for( int i = 0; i < accuracy; i++ )
-				normalizedT += deltaMovement * _1OverCount / ( accuracy * GetTangent( normalizedT ).magnitude );
+				normalizedT += constant / GetTangent( normalizedT ).magnitude;
 
 			return GetPoint( normalizedT );
 		}
@@ -406,7 +321,7 @@ namespace BezierSolution
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
 				endPoints[i].handleMode = BezierPoint.HandleMode.Free;
-				
+
 				if( i < endPoints.Count - 1 )
 				{
 					Vector3 midPoint = ( endPoints[i].position + endPoints[i + 1].position ) * 0.5f;
@@ -485,7 +400,7 @@ namespace BezierSolution
 			{
 				float controlPointDistance = Vector3.Distance( endPoints[0].followingControlPointPosition, endPoints[0].position );
 				Vector3 direction = Vector3.Normalize( endPoints[n].position - endPoints[1].position );
-				endPoints[0].precedingControlPointPosition = endPoints[0].position + direction * controlPointDistance * 0.5f;
+				endPoints[0].precedingControlPointPosition = endPoints[0].position + direction * controlPointDistance;
 				endPoints[0].followingControlPointLocalPosition = -endPoints[0].precedingControlPointLocalPosition;
 			}
 		}
@@ -519,7 +434,7 @@ namespace BezierSolution
 		public void AutoConstructSpline2()
 		{
 			// Credit: http://stackoverflow.com/questions/3526940/how-to-create-a-cubic-bezier-curve-when-given-n-points-in-3d
-			
+
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
 				Vector3 pMinus1, p1, p2;
@@ -599,9 +514,9 @@ namespace BezierSolution
 				gizmoMaterial.SetInt( "_Cull", (int) UnityEngine.Rendering.CullMode.Off );
 				gizmoMaterial.SetInt( "_ZWrite", 0 );
 			}
-			
+
 			gizmoMaterial.SetPass( 0 );
-			
+
 			GL.Begin( GL.LINES );
 			GL.Color( gizmoColor );
 
@@ -617,7 +532,7 @@ namespace BezierSolution
 			GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );
 			lastPos = GetPoint( 1f );
 			GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );
-			
+
 			GL.End();
 		}
 

@@ -3,7 +3,7 @@ using UnityEngine.Events;
 
 namespace BezierSolution
 {
-	public class BezierWalkerWithTime : MonoBehaviour
+	public class BezierWalkerWithTime : MonoBehaviour, IBezierWalker
 	{
 		public enum TravelMode { Once, Loop, PingPong };
 
@@ -14,6 +14,8 @@ namespace BezierSolution
 
 		public float travelTime = 5f;
 		private float progress = 0f;
+
+		public BezierSpline Spline { get { return spline; } }
 
 		public float NormalizedT
 		{
@@ -27,17 +29,18 @@ namespace BezierSolution
 		public bool lookForward = true;
 
 		private bool isGoingForward = true;
+		public bool MovingForward { get { return isGoingForward; } }
 
 		public UnityEvent onPathCompleted = new UnityEvent();
 		private bool onPathCompletedCalledAt1 = false;
 		private bool onPathCompletedCalledAt0 = false;
 
-		void Awake()
+		private void Awake()
 		{
 			cachedTransform = transform;
 		}
 
-		void Update()
+		private void Update()
 		{
 			cachedTransform.position = Vector3.Lerp( cachedTransform.position, spline.GetPoint( progress ), movementLerpModifier * Time.deltaTime );
 

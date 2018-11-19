@@ -20,7 +20,7 @@ namespace BezierSolution
 		private ParticleSystem.Particle[] particles;
 		private List<Vector4> particleData;
 
-		void Awake()
+		private void Awake()
 		{
 			cachedTransform = transform;
 			cachedPS = GetComponent<ParticleSystem>();
@@ -33,13 +33,13 @@ namespace BezierSolution
 		}
 
 #if UNITY_EDITOR
-		void OnEnable()
+		private void OnEnable()
 		{
 			Awake();
 		}
 #endif
 
-		void LateUpdate()
+		private void LateUpdate()
 		{
 			if( spline == null || cachedPS == null )
 				return;
@@ -88,7 +88,7 @@ namespace BezierSolution
 					particles[i].position = point;
 				}
 			}
-			
+
 			cachedPS.SetParticles( particles, aliveParticles );
 		}
 	}

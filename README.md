@@ -142,13 +142,17 @@ Framework comes with 3 additional components that may help you move objects or p
 
 Moves an object along a spline with constant speed. There are 3 travel modes: Once, Ping Pong and Loop. If Look Forward is selected, the object will always face forward and the smoothness of the rotation can be adjusted using the Rotation Lerp Modifier. Each time the object completes a lap, its On Path Completed () event is invoked.
 
-If the object is moving at high speed, it sometimes slows down briefly near the last end point. This effect can be counteracted by increasing Relaxation At End Points. However, if its value is too high, then the object starts skipping a small segment of the spline near the last end point.
-
 - **BezierWalkerWithTime**
 
 ![walker-with-time](Images/6.png)
 
 Travels a spline in Travel Time seconds. Movement Lerp Modifier parameter defines the smoothness applied to the position of the object.
+
+- **BezierWalkerLocomotion**
+
+![walker-locomotion](Images/6_2.png)
+
+Allows you to move a number of objects together with this object on a spline. This component must be attached to an object with a BezierWalker component (tail objects don't need a BezierWalker, though). Look Forward and Rotation Lerp Modifier parameters affect the tail objects. If you attach this component to a BezierWalkerWithTime object, it is recommended that you set its Movement Lerp Modifier to something big, like 1000.
 
 - **ParticlesFollowBezier**
 
