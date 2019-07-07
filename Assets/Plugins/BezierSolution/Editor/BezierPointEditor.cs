@@ -96,7 +96,7 @@ namespace BezierSolution
 				Undo.RecordObject( point, "Move Control Point" );
 				point.precedingControlPointPosition = position;
 			}
-			
+
 			EditorGUI.BeginChangeCheck();
 			position = Handles.PositionHandle( point.followingControlPointPosition, Tools.pivotRotation == PivotRotation.Local ? followingPointRotation : Quaternion.identity );
 			if( EditorGUI.EndChangeCheck() )
@@ -119,7 +119,7 @@ namespace BezierSolution
 
 				EditorGUILayout.Space();
 				DrawSeparator();
-				
+
 				GUILayout.BeginHorizontal();
 
 				if( GUILayout.Button( "<-", GUILayout.Width( 45 ) ) )
@@ -197,7 +197,7 @@ namespace BezierSolution
 
 				EditorGUILayout.Space();
 			}
-			
+
 			EditorGUI.BeginChangeCheck();
 			BezierPoint.HandleMode handleMode = (BezierPoint.HandleMode) EditorGUILayout.EnumPopup( "Handle Mode", point.handleMode );
 			if( EditorGUI.EndChangeCheck() )
@@ -207,7 +207,7 @@ namespace BezierSolution
 
 				SceneView.RepaintAll();
 			}
-			
+
 			EditorGUILayout.Space();
 
 			EditorGUI.BeginChangeCheck();
@@ -229,6 +229,9 @@ namespace BezierSolution
 
 				SceneView.RepaintAll();
 			}
+
+			if( Vector3.Distance( point.position, point.precedingControlPointPosition ) + Vector3.Distance( point.position, point.followingControlPointPosition ) < 0.1f )
+				EditorGUILayout.HelpBox( "Control point(s) are very close to (0,0,0), this might result in unpredictable behaviour while moving along the spline with constant speed.", MessageType.Warning );
 
 			EditorGUILayout.Space();
 
@@ -306,14 +309,14 @@ namespace BezierSolution
 				position = index == 0 ? spline[0].localPosition - Vector3.forward : spline[0].localPosition + Vector3.forward;
 			else
 				position = Vector3.zero;
-			
+
 			BezierPoint point = spline.InsertNewPointAt( index );
 			point.localPosition = position;
 
 			Undo.IncrementCurrentGroup();
 			Undo.RegisterCreatedObjectUndo( point.gameObject, "Insert Point" );
 			Undo.RegisterCompleteObjectUndo( point.transform.parent, "Insert Point" );
-			
+
 			Selection.activeTransform = point.transform;
 			SceneView.RepaintAll();
 		}
@@ -325,7 +328,7 @@ namespace BezierSolution
 			Undo.IncrementCurrentGroup();
 			Undo.RegisterCreatedObjectUndo( point.gameObject, "Duplicate Point" );
 			Undo.RegisterCompleteObjectUndo( point.transform.parent, "Duplicate Point" );
-			
+
 			Selection.activeTransform = point.transform;
 			SceneView.RepaintAll();
 		}
@@ -337,12 +340,12 @@ namespace BezierSolution
 
 			Undo.IncrementCurrentGroup();
 			Undo.DestroyObjectImmediate( spline[index].gameObject );
-			
+
 			if( index >= spline.Count )
 				index--;
 
 			Selection.activeTransform = spline[index].transform;
-			
+
 			SceneView.RepaintAll();
 		}
 

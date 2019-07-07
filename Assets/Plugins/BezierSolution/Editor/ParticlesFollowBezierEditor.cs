@@ -7,7 +7,7 @@ namespace BezierSolution
 	[CanEditMultipleObjects]
 	public class ParticlesFollowBezierEditor : Editor
 	{
-		// This class is used to reset the a particle system attached to a ParticlesFollowBezier
+		// This class is used to reset the particle system attached to a ParticlesFollowBezier
 		// component when it is selected. Otherwise, particles move in a chaotic way for a while
 
 		private int particlesReset;

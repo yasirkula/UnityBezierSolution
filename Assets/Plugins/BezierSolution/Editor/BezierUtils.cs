@@ -88,7 +88,7 @@ namespace BezierSolution
 
 				return;
 			}
-			
+
 			Color c = GUI.color;
 
 			EditorGUI.BeginChangeCheck();

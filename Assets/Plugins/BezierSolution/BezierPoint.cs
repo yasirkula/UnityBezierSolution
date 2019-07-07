@@ -12,6 +12,7 @@ namespace BezierSolution
 			set { transform.localPosition = value; }
 		}
 
+#pragma warning disable 0649
 		[SerializeField]
 		[HideInInspector]
 		private Vector3 m_position;
@@ -26,7 +27,8 @@ namespace BezierSolution
 			}
 			set { transform.position = value; }
 		}
-		
+#pragma warning restore 0649
+
 		public Quaternion localRotation
 		{
 			get { return transform.localRotation; }
@@ -50,13 +52,14 @@ namespace BezierSolution
 			get { return transform.eulerAngles; }
 			set { transform.eulerAngles = value; }
 		}
-		
+
 		public Vector3 localScale
 		{
 			get { return transform.localScale; }
 			set { transform.localScale = value; }
 		}
 
+#pragma warning disable 0649
 		[SerializeField]
 		[HideInInspector]
 		private Vector3 m_precedingControlPointLocalPosition = Vector3.left;
@@ -202,6 +205,7 @@ namespace BezierSolution
 					precedingControlPointLocalPosition = m_precedingControlPointLocalPosition;
 			}
 		}
+#pragma warning restore 0649
 
 		private void Awake()
 		{
@@ -228,7 +232,7 @@ namespace BezierSolution
 
 			transform.hasChanged = false;
 		}
-		
+
 		public void Reset()
 		{
 			localPosition = Vector3.zero;

@@ -7,11 +7,13 @@ namespace BezierSolution
 	{
 		private IBezierWalker walker;
 
+#pragma warning disable 0649
 		[SerializeField]
 		private List<Transform> tailObjects;
 
 		[SerializeField]
 		private List<float> tailObjectDistances;
+#pragma warning restore 0649
 
 		public int TailLength { get { return tailObjects.Count; } }
 
