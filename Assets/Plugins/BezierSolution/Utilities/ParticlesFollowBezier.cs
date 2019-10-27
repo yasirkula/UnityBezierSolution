@@ -39,13 +39,21 @@ namespace BezierSolution
 		}
 #endif
 
+#if UNITY_EDITOR
 		private void LateUpdate()
+		{
+			if( !UnityEditor.EditorApplication.isPlaying )
+				FixedUpdate();
+		}
+#endif
+
+		private void FixedUpdate()
 		{
 			if( spline == null || cachedPS == null )
 				return;
 
 			if( particles.Length < cachedMainModule.maxParticles && particles.Length < MAX_PARTICLE_COUNT )
-				particles = new ParticleSystem.Particle[Mathf.Min( cachedMainModule.maxParticles, MAX_PARTICLE_COUNT )];
+				System.Array.Resize( ref particles, Mathf.Min( cachedMainModule.maxParticles, MAX_PARTICLE_COUNT ) );
 
 			bool isLocalSpace = cachedMainModule.simulationSpace != ParticleSystemSimulationSpace.World;
 			int aliveParticles = cachedPS.GetParticles( particles );

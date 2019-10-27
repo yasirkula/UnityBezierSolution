@@ -3,82 +3,88 @@ using UnityEngine.Events;
 
 namespace BezierSolution
 {
-	public class BezierWalkerWithSpeed : MonoBehaviour, IBezierWalker
+	public class BezierWalkerWithSpeed : BezierWalker
 	{
-		public enum TravelMode { Once, Loop, PingPong };
-
-		private Transform cachedTransform;
-
 		public BezierSpline spline;
 		public TravelMode travelMode;
 
 		public float speed = 5f;
-		private float progress = 0f;
+		[SerializeField]
+		[Range( 0f, 1f )]
+		private float m_normalizedT = 0f;
 
-		public BezierSpline Spline { get { return spline; } }
+		public override BezierSpline Spline { get { return spline; } }
 
-		public float NormalizedT
+		public override float NormalizedT
 		{
-			get { return progress; }
-			set { progress = value; }
+			get { return m_normalizedT; }
+			set { m_normalizedT = value; }
 		}
 
 		//public float movementLerpModifier = 10f;
 		public float rotationLerpModifier = 10f;
 
+		[System.Obsolete( "Use lookAt instead", true )]
+		[System.NonSerialized]
 		public bool lookForward = true;
+		public LookAtMode lookAt = LookAtMode.Forward;
 
 		private bool isGoingForward = true;
-		public bool MovingForward { get { return ( speed > 0f ) == isGoingForward; } }
+		public override bool MovingForward { get { return ( speed > 0f ) == isGoingForward; } }
 
 		public UnityEvent onPathCompleted = new UnityEvent();
 		private bool onPathCompletedCalledAt1 = false;
 		private bool onPathCompletedCalledAt0 = false;
 
-		private void Awake()
+		private void Update()
 		{
-			cachedTransform = transform;
+			Execute( Time.deltaTime );
 		}
 
-		private void Update()
+		public override void Execute( float deltaTime )
 		{
 			float targetSpeed = ( isGoingForward ) ? speed : -speed;
 
-			Vector3 targetPos = spline.MoveAlongSpline( ref progress, targetSpeed * Time.deltaTime );
+			Vector3 targetPos = spline.MoveAlongSpline( ref m_normalizedT, targetSpeed * deltaTime );
 
-			cachedTransform.position = targetPos;
-			//cachedTransform.position = Vector3.Lerp( cachedTransform.position, targetPos, movementLerpModifier * Time.deltaTime );
+			transform.position = targetPos;
+			//transform.position = Vector3.Lerp( transform.position, targetPos, movementLerpModifier * deltaTime );
 
 			bool movingForward = MovingForward;
 
-			if( lookForward )
+			if( lookAt == LookAtMode.Forward )
 			{
 				Quaternion targetRotation;
 				if( movingForward )
-					targetRotation = Quaternion.LookRotation( spline.GetTangent( progress ) );
+					targetRotation = Quaternion.LookRotation( spline.GetTangent( m_normalizedT ) );
 				else
-					targetRotation = Quaternion.LookRotation( -spline.GetTangent( progress ) );
+					targetRotation = Quaternion.LookRotation( -spline.GetTangent( m_normalizedT ) );
 
-				cachedTransform.rotation = Quaternion.Lerp( cachedTransform.rotation, targetRotation, rotationLerpModifier * Time.deltaTime );
+				transform.rotation = Quaternion.Lerp( transform.rotation, targetRotation, rotationLerpModifier * deltaTime );
 			}
+			else if( lookAt == LookAtMode.SplineExtraData )
+				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( m_normalizedT ), rotationLerpModifier * deltaTime );
 
 			if( movingForward )
 			{
-				if( progress >= 1f )
+				if( m_normalizedT >= 1f )
 				{
 					if( !onPathCompletedCalledAt1 )
 					{
-						onPathCompleted.Invoke();
 						onPathCompletedCalledAt1 = true;
+#if UNITY_EDITOR
+						if( UnityEditor.EditorApplication.isPlaying )
+#endif
+							onPathCompleted.Invoke();
 					}
 
 					if( travelMode == TravelMode.Once )
-						progress = 1f;
+						m_normalizedT = 1f;
 					else if( travelMode == TravelMode.Loop )
-						progress -= 1f;
+						m_normalizedT -= 1f;
 					else
 					{
-						progress = 2f - progress;
+						m_normalizedT = 2f - m_normalizedT;
 						isGoingForward = !isGoingForward;
 					}
 				}
@@ -89,21 +95,24 @@ namespace BezierSolution
 			}
 			else
 			{
-				if( progress <= 0f )
+				if( m_normalizedT <= 0f )
 				{
 					if( !onPathCompletedCalledAt0 )
 					{
-						onPathCompleted.Invoke();
 						onPathCompletedCalledAt0 = true;
+#if UNITY_EDITOR
+						if( UnityEditor.EditorApplication.isPlaying )
+#endif
+							onPathCompleted.Invoke();
 					}
 
 					if( travelMode == TravelMode.Once )
-						progress = 0f;
+						m_normalizedT = 0f;
 					else if( travelMode == TravelMode.Loop )
-						progress += 1f;
+						m_normalizedT += 1f;
 					else
 					{
-						progress = -progress;
+						m_normalizedT = -m_normalizedT;
 						isGoingForward = !isGoingForward;
 					}
 				}

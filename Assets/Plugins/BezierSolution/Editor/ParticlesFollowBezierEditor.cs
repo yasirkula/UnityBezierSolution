@@ -1,18 +1,17 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-namespace BezierSolution
+namespace BezierSolution.Extras
 {
+	// This class is used to reset the particle system attached to a ParticlesFollowBezier
+	// component when it is selected. Otherwise, particles move in a chaotic way for a while
 	[CustomEditor( typeof( ParticlesFollowBezier ) )]
 	[CanEditMultipleObjects]
 	public class ParticlesFollowBezierEditor : Editor
 	{
-		// This class is used to reset the particle system attached to a ParticlesFollowBezier
-		// component when it is selected. Otherwise, particles move in a chaotic way for a while
-
 		private int particlesReset;
 
-		void OnEnable()
+		private void OnEnable()
 		{
 			particlesReset = 3;
 		}
@@ -29,8 +28,11 @@ namespace BezierSolution
 				particlesReset--;
 				if( particlesReset == 0 )
 				{
-					ResetParticles( ( (ParticlesFollowBezier) target ).GetComponentsInParent<ParticlesFollowBezier>() );
-					ResetParticles( ( (ParticlesFollowBezier) target ).GetComponentsInChildren<ParticlesFollowBezier>() );
+					foreach( Object target in targets )
+					{
+						ResetParticles( ( (ParticlesFollowBezier) target ).GetComponentsInParent<ParticlesFollowBezier>() );
+						ResetParticles( ( (ParticlesFollowBezier) target ).GetComponentsInChildren<ParticlesFollowBezier>() );
+					}
 				}
 			}
 		}

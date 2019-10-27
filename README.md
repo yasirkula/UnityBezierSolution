@@ -10,15 +10,9 @@
 
 This asset is a means to create bezier splines in editor and/or during runtime: splines can be created and edited visually in the editor, or by code during runtime.
 
-### UPGRADING FROM PREVIOUS VERSIONS
-
-If you are using a previous version of this plugin that was released before 01.20.2018, you should first export your splines in JSON format in order not to lose your current splines.
-
-To export your splines, you should copy [Upgrade/BezierSplineExport.cs](Upgrade/BezierSplineExport.cs) to the Assets/Editor folder of your project (create it if not exists). Afterwards, select a spline in your scene, click the cog icon of Bezier Spline component in Inspector and select *Export*. Repeat the process for all your splines.
-
-After exporting your splines, upgrade the plugin by importing Bezier.unitypackage to your project. It is recommended that you delete Assets/Plugins/BezierSolution folder first for a fresh upgrade. Finally, to bring your splines back to life, use the *Import* button in the Bezier Spline component's context menu.
-
 ### CREATING & EDITING A NEW SPLINE IN EDITOR
+
+First, you should import [BezierSolution.unitypackage](https://github.com/yasirkula/UnityBezierSolution/releases) to your project.
 
 To create a new spline in the editor, follow "GameObject - Bezier Spline".
 
@@ -30,21 +24,23 @@ The user interface for the spline editor should be pretty self-explanatory. Howe
 
 ![inspector](Images/3.png)
 
-**Loop**: connects the first end point and the last end point of the spline
+**Loop:** connects the first end point and the last end point of the spline
 
-**Draw Runtime Gizmos**: draws the spline during gameplay. Can be tweaked and customized using *DrawGizmos*/*HideGizmos* functions (see *UTILITY FUNCTIONS*)
+**Draw Runtime Gizmos:** draws the spline during gameplay
 
-**Handle Mode**: control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)
+**Construct Linear Path:** constructs a completely linear path between the end points by using *Free* handle mode and adjusting the control points of end points (see *Convert spline to a linear path* section below). Enabling the **Always** option will apply this technique to the spline whenever its end points change (Editor-only)
 
-**Construct Linear Path**: constructs a completely linear path between the end points by using *Free* handle mode and adjusting the control points of end points (see *Convert spline to a linear path* section below)
+**Auto Construct Spline:** auto adjusts the control points of end points to form a smooth spline that goes through the end points you set. There are 2 different implementations for it, with each giving a slightly different output (see *Auto construct the spline* section below)
 
-**Auto Construct Spline**: auto adjusts the control points of end points to form a smooth spline that goes through the end points you set. There are 2 different implementations for it, with each giving a slightly different output (see *Auto construct the spline* section below)
+**Handle Mode:** control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)
+
+**Extra Data:** end points can store additional data that can hold 4 floats. You can interpolate between points' extra data by code (see *UTILITY FUNCTIONS* section below). This extra data is especially useful for moving a camera on a bezier spline while setting different camera rotations at each end point (the BezierWalker components can read that data). You can click the **C** button to store the Scene camera's current rotation in this extra data. Then, you can visualize this data by clicking the **V** button
 
 ### CREATING & EDITING A NEW SPLINE BY CODE
 
 - **Create a new bezier spline**
 
-Simply create a new GameObject, attach a BezierSpline component to it (BezierSpline uses *BezierSolution* namespace) and initialize the spline with a minimum of two end points:
+Simply create a new GameObject, attach a BezierSpline component to it (BezierSpline uses `BezierSolution` namespace) and initialize the spline with a minimum of two end points:
 
 ```csharp
 BezierSpline spline = new GameObject().AddComponent<BezierSpline>();
@@ -61,15 +57,17 @@ spline.Initialize( 2 );
 
 `void SwapPointsAt( int index1, int index2 )`: swaps indices of two end points
 
+`void MovePoint( int previousIndex, int newIndex )`: changes an end point's index
+
 `int IndexOf( BezierPoint point )`: returns the index of an end point
 
 - **Shape the spline**
 
 You can change the position, rotation and scale values of end points and the positions of their control points to reshape the spline.
 
-End points have the following properties to store their transformational data: position, localPosition, rotation, localRotation, eulerAngles, localEulerAngles and localScale.
+End points have the following properties to store their transformational data: `position`, `localPosition`, `rotation`, `localRotation`, `eulerAngles`, `localEulerAngles` and `localScale`.
 
-Positions of control points can be tweaked using the following properties in BezierPoint: precedingControlPointPosition, precedingControlPointLocalPosition, followingControlPointPosition and followingControlPointLocalPosition. The local positions are relative to their corresponding end points.
+Positions of control points can be tweaked using the following properties in BezierPoint: `precedingControlPointPosition`, `precedingControlPointLocalPosition`, `followingControlPointPosition` and `followingControlPointLocalPosition`. The local positions are relative to their corresponding end points.
 
 ```csharp
 // Set first end point's (world) position to 2,3,5
@@ -110,6 +108,10 @@ A spline is essentially a mathematical formula with a [0,1] clamped input (usual
 
 Tangent is calculated using the first derivative of the spline formula and gives the direction of the movement at a given point on the spline. Can be used to determine which direction an object on the spline should look at at a given point.
 
+- `BezierPoint.ExtraData GetExtraData( float normalizedT )`
+
+Interpolates between the extra data provided at each end point. This data has 4 float components and can implicitly be converted to Vector2, Vector3, Vector4, Quaternion, Rect, Vector2Int, Vector3Int and RectInt.
+
 - `float GetLengthApproximately( float startNormalizedT, float endNormalizedT, float accuracy = 50f )`
 
 Calculates the approximate length of a segment of the spline. To calculate the length, the spline is divided into "accuracy" points and the Euclidean distances between these points are summed up.
@@ -124,14 +126,6 @@ Finds the nearest point on the spline to any given point in 3D space. The normal
 
 Moves a point (normalizedT) on the spline deltaMovement units ahead and returns the resulting point. The normalizedT parameter is passed by reference to keep track of the new *t* parameter.
 
-- `void DrawGizmos( Color color, int smoothness = 4 )`
-
-Starts drawing the spline during gameplay using GL lines. As *smoothness* increases, drawn spline will become smoother.
-
-- `void HideGizmos()`
-
-Stops drawing the spline during gameplay.
-
 ### OTHER COMPONENTS
 
 Framework comes with 3 additional components that may help you move objects or particles along splines. These components are located in the Utilities folder.
@@ -140,19 +134,19 @@ Framework comes with 3 additional components that may help you move objects or p
 
 ![walker-with-speed](Images/5.png)
 
-Moves an object along a spline with constant speed. There are 3 travel modes: Once, Ping Pong and Loop. If Look Forward is selected, the object will always face forward and the smoothness of the rotation can be adjusted using the Rotation Lerp Modifier. Each time the object completes a lap, its On Path Completed () event is invoked.
+Moves an object along a spline with constant speed. There are 3 travel modes: Once, Ping Pong and Loop. If *Look At* is Forward, the object will always face forwards. If it is SplineExtraData, the extra data stored in the spline's end points is used to determine the rotation. You can modify this extra data from the points' Inspector. The smoothness of the rotation can be adjusted via *Rotation Lerp Modifier*. *Normalized T* determines the starting point. Each time the object completes a lap, its *On Path Completed ()* event is invoked. To see this component in action without entering Play mode, click the *Simulate In Editor* button.
 
 - **BezierWalkerWithTime**
 
 ![walker-with-time](Images/6.png)
 
-Travels a spline in Travel Time seconds. Movement Lerp Modifier parameter defines the smoothness applied to the position of the object.
+Travels a spline in *Travel Time* seconds. *Movement Lerp Modifier* parameter defines the smoothness applied to the position of the object.
 
 - **BezierWalkerLocomotion**
 
 ![walker-locomotion](Images/6_2.png)
 
-Allows you to move a number of objects together with this object on a spline. This component must be attached to an object with a BezierWalker component (tail objects don't need a BezierWalker, though). Look Forward and Rotation Lerp Modifier parameters affect the tail objects. If you attach this component to a BezierWalkerWithTime object, it is recommended that you set its Movement Lerp Modifier to something big, like 1000.
+Allows you to move a number of objects together with this object on a spline. This component must be attached to an object with a BezierWalker component (tail objects don't need a BezierWalker, though). *Look At*, *Movement Lerp Modifier* and *Rotation Lerp Modifier* parameters affect the tail objects.
 
 - **ParticlesFollowBezier**
 

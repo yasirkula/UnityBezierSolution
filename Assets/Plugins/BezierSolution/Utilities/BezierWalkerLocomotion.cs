@@ -3,44 +3,41 @@ using UnityEngine;
 
 namespace BezierSolution
 {
-	public class BezierWalkerLocomotion : MonoBehaviour, IBezierWalker
+	public class BezierWalkerLocomotion : BezierWalker
 	{
-		private IBezierWalker walker;
+		public BezierWalker walker;
 
 #pragma warning disable 0649
 		[SerializeField]
 		private List<Transform> tailObjects;
+		public List<Transform> Tail { get { return tailObjects; } }
 
 		[SerializeField]
 		private List<float> tailObjectDistances;
+		public List<float> TailDistances { get { return tailObjectDistances; } }
 #pragma warning restore 0649
 
-		public int TailLength { get { return tailObjects.Count; } }
-
-		public Transform this[int index] { get { return tailObjects[index]; } }
-
+		public float movementLerpModifier = 10f;
 		public float rotationLerpModifier = 10f;
+
+		[System.Obsolete( "Use lookAt instead", true )]
+		[System.NonSerialized]
 		public bool lookForward = true;
+		public LookAtMode lookAt = LookAtMode.Forward;
 
-		public BezierSpline Spline { get { return walker.Spline; } }
-		public float NormalizedT { get { return walker.NormalizedT; } }
-		public bool MovingForward { get { return walker.MovingForward; } }
-
-		private void Awake()
+		public override BezierSpline Spline { get { return walker.Spline; } }
+		public override bool MovingForward { get { return walker.MovingForward; } }
+		public override float NormalizedT
 		{
-			IBezierWalker[] walkerComponents = GetComponents<IBezierWalker>();
-			for( int i = 0; i < walkerComponents.Length; i++ )
-			{
-				if( !( walkerComponents[i] is BezierWalkerLocomotion ) && ( (MonoBehaviour) walkerComponents[i] ).enabled )
-				{
-					walker = walkerComponents[i];
-					break;
-				}
-			}
+			get { return walker.NormalizedT; }
+			set { walker.NormalizedT = value; }
+		}
 
-			if( walker == null )
+		private void Start()
+		{
+			if( !walker )
 			{
-				Debug.LogError( "Need to attach BezierWalkerLocomotion to an IBezierWalker!" );
+				Debug.LogError( "Need to attach BezierWalkerLocomotion to a BezierWalker!" );
 				Destroy( this );
 			}
 
@@ -53,6 +50,11 @@ namespace BezierSolution
 
 		private void LateUpdate()
 		{
+			Execute( Time.deltaTime );
+		}
+
+		public override void Execute( float deltaTime )
+		{
 			float t = NormalizedT;
 			BezierSpline spline = Spline;
 			bool forward = MovingForward;
@@ -60,21 +62,24 @@ namespace BezierSolution
 			for( int i = 0; i < tailObjects.Count; i++ )
 			{
 				Transform tailObject = tailObjects[i];
-				float dt = Time.deltaTime;
 
 				if( forward )
 				{
-					tailObject.position = spline.MoveAlongSpline( ref t, -tailObjectDistances[i] );
+					tailObject.position = Vector3.Lerp( tailObject.position, spline.MoveAlongSpline( ref t, -tailObjectDistances[i] ), movementLerpModifier * deltaTime );
 
-					if( lookForward )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( spline.GetTangent( t ) ), rotationLerpModifier * dt );
+					if( lookAt == LookAtMode.Forward )
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( spline.GetTangent( t ) ), rotationLerpModifier * deltaTime );
+					else if( lookAt == LookAtMode.SplineExtraData )
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t ), rotationLerpModifier * deltaTime );
 				}
 				else
 				{
-					tailObject.position = spline.MoveAlongSpline( ref t, tailObjectDistances[i] );
+					tailObject.position = Vector3.Lerp( tailObject.position, spline.MoveAlongSpline( ref t, tailObjectDistances[i] ), movementLerpModifier * deltaTime );
 
-					if( lookForward )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( -spline.GetTangent( t ) ), rotationLerpModifier * dt );
+					if( lookAt == LookAtMode.Forward )
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( -spline.GetTangent( t ) ), rotationLerpModifier * deltaTime );
+					else if( lookAt == LookAtMode.SplineExtraData )
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t ), rotationLerpModifier * deltaTime );
 				}
 			}
 		}
@@ -122,5 +127,20 @@ namespace BezierSolution
 				}
 			}
 		}
+
+#if UNITY_EDITOR
+		private void Reset()
+		{
+			BezierWalker[] walkerComponents = GetComponents<BezierWalker>();
+			for( int i = 0; i < walkerComponents.Length; i++ )
+			{
+				if( !( walkerComponents[i] is BezierWalkerLocomotion ) && ( (MonoBehaviour) walkerComponents[i] ).enabled )
+				{
+					walker = walkerComponents[i];
+					break;
+				}
+			}
+		}
+#endif
 	}
 }

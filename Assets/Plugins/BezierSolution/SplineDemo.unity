@@ -154,6 +154,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.1676443, y: 0, z: 0.15211868}
   m_followingControlPointPosition: {x: -0.45545524, y: 0.72762233, z: -1.004933}
   m_handleMode: 0
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &54814373
 GameObject:
   m_ObjectHideFlags: 0
@@ -253,9 +258,10 @@ MonoBehaviour:
   spline: {fileID: 2112567397}
   travelMode: 2
   travelTime: 5
+  m_normalizedT: 0
   movementLerpModifier: 10
   rotationLerpModifier: 10
-  lookForward: 1
+  lookAt: 1
   onPathCompleted:
     m_PersistentCalls:
       m_Calls: []
@@ -307,6 +313,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.04451251, y: 0, z: -0.13437235}
   m_followingControlPointPosition: {x: -3.8362718, y: -1.0478318, z: -1.4111356}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &126177800
 GameObject:
   m_ObjectHideFlags: 0
@@ -336,6 +347,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   loop: 1
   drawGizmos: 0
+  gizmoColor: {r: 1, g: 1, b: 1, a: 1}
+  m_gizmoSmoothness: 4
+  Internal_AutoConstructMode: 0
 --- !u!4 &126177802
 Transform:
   m_ObjectHideFlags: 0
@@ -401,6 +415,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.022587538, y: 0, z: -0.10904813}
   m_followingControlPointPosition: {x: -3.8815756, y: 1.0528779, z: -0.61895514}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &143379203
 GameObject:
   m_ObjectHideFlags: 0
@@ -447,6 +466,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.061824072, y: 0, z: 0.21266727}
   m_followingControlPointPosition: {x: -0.037719548, y: 1.1954362, z: -0.7112229}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &154533942
 GameObject:
   m_ObjectHideFlags: 0
@@ -493,6 +517,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.09696913, y: 0, z: -0.06397148}
   m_followingControlPointPosition: {x: -0.44161463, y: -0.8585069, z: -1.2002796}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &337675389
 GameObject:
   m_ObjectHideFlags: 0
@@ -621,6 +650,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.25231743, y: 0, z: -0.07634574}
   m_followingControlPointPosition: {x: -5.480778, y: 0.76588506, z: -0.15308747}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &453311153
 GameObject:
   m_ObjectHideFlags: 0
@@ -667,6 +701,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.11511052, y: 0, z: 0.01853376}
   m_followingControlPointPosition: {x: 0.9742056, y: -2.4089122, z: -0.6063541}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &460958476
 GameObject:
   m_ObjectHideFlags: 0
@@ -795,6 +834,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.20887783, y: 0, z: -0.41264752}
   m_followingControlPointPosition: {x: -1.2214879, y: -3.693573, z: -1.9997915}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &544969633
 GameObject:
   m_ObjectHideFlags: 0
@@ -841,6 +885,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.11810255, y: -0.000000007450581, z: -0.44082057}
   m_followingControlPointPosition: {x: -4.292964, y: -1.0506775, z: 3.5899997}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &600501173
 GameObject:
   m_ObjectHideFlags: 0
@@ -887,6 +936,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.23100758, y: 0, z: 0.2599901}
   m_followingControlPointPosition: {x: -7.012766, y: -0.97153074, z: -0.2470271}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &625103346
 GameObject:
   m_ObjectHideFlags: 0
@@ -933,6 +987,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.04138258, y: 0, z: -0.039102413}
   m_followingControlPointPosition: {x: -0.42190713, y: -0.019463778, z: -1.0818152}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &631746913
 GameObject:
   m_ObjectHideFlags: 0
@@ -979,6 +1038,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.37536645, y: -0, z: 0.011424422}
   m_followingControlPointPosition: {x: -1.0997281, y: -3.340291, z: 3.59}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &658625639
 GameObject:
   m_ObjectHideFlags: 0
@@ -1025,6 +1089,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.26152948, y: 0, z: -0.0075016036}
   m_followingControlPointPosition: {x: 1.3609834, y: -3.8845925, z: -0.5788225}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &662000306
 GameObject:
   m_ObjectHideFlags: 0
@@ -1071,6 +1140,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.10456419, y: 0, z: 0.4414876}
   m_followingControlPointPosition: {x: 0.70354044, y: 1.0303602, z: 3.5899994}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &711877544
 GameObject:
   m_ObjectHideFlags: 0
@@ -1117,6 +1191,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.26239017, y: 0, z: -0.12974901}
   m_followingControlPointPosition: {x: -2.9380734, y: 0.1828847, z: -2.4642222}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &728216725
 GameObject:
   m_ObjectHideFlags: 0
@@ -1146,6 +1225,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   loop: 1
   drawGizmos: 0
+  gizmoColor: {r: 1, g: 1, b: 1, a: 1}
+  m_gizmoSmoothness: 4
+  Internal_AutoConstructMode: 0
 --- !u!4 &728216727
 Transform:
   m_ObjectHideFlags: 0
@@ -1222,6 +1304,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.2517035, y: 0, z: -0.1955263}
   m_followingControlPointPosition: {x: -5.2826915, y: -0.86753523, z: -0.8272919}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &762584196
 GameObject:
   m_ObjectHideFlags: 0
@@ -1268,6 +1355,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.054610252, y: 0, z: -0.19693798}
   m_followingControlPointPosition: {x: -5.8785424, y: 0.16048726, z: -0.23447327}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &895981909
 GameObject:
   m_ObjectHideFlags: 0
@@ -1314,6 +1406,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.29872727, y: 0, z: -0.07156277}
   m_followingControlPointPosition: {x: -4.5848093, y: 1.6925446, z: -0.13119042}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &898965706
 GameObject:
   m_ObjectHideFlags: 0
@@ -1360,6 +1457,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.048472665, y: 0, z: -0.097998515}
   m_followingControlPointPosition: {x: -1.0186782, y: 0.2087177, z: -1.3866152}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &939553621
 GameObject:
   m_ObjectHideFlags: 0
@@ -1488,6 +1590,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.26369286, y: 0, z: 0.18036842}
   m_followingControlPointPosition: {x: -5.7997985, y: 1.7756177, z: 0.3339796}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1060012329
 GameObject:
   m_ObjectHideFlags: 0
@@ -1534,6 +1641,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.069139004, y: 0, z: 0.3577338}
   m_followingControlPointPosition: {x: -6.925434, y: 0.6300685, z: 0.3133566}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1105749770
 GameObject:
   m_ObjectHideFlags: 0
@@ -1580,6 +1692,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.2513587, y: 0, z: 0.102872014}
   m_followingControlPointPosition: {x: -4.1388187, y: 1.645257, z: 3.5899994}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1108260712
 GameObject:
   m_ObjectHideFlags: 0
@@ -1708,6 +1825,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.11589549, y: 0, z: 0.22728457}
   m_followingControlPointPosition: {x: -1.9628341, y: 2.4027593, z: -1.6341338}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1145851118
 GameObject:
   m_ObjectHideFlags: 0
@@ -1754,6 +1876,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.122305445, y: 0, z: 0.029033283}
   m_followingControlPointPosition: {x: 0.26532307, y: -2.8299122, z: -1.0570265}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1162037917
 GameObject:
   m_ObjectHideFlags: 0
@@ -1800,6 +1927,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.0038200452, y: 0, z: 0.07248306}
   m_followingControlPointPosition: {x: 1.054744, y: -1.172054, z: -0.4029044}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1232478177
 GameObject:
   m_ObjectHideFlags: 0
@@ -1833,9 +1965,9 @@ MonoBehaviour:
   spline: {fileID: 728216726}
   travelMode: 1
   speed: 3
-  relaxationAtEndPoints: 0.001
+  m_normalizedT: 0
   rotationLerpModifier: 10
-  lookForward: 1
+  lookAt: 1
   onPathCompleted:
     m_PersistentCalls:
       m_Calls: []
@@ -1953,6 +2085,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.36725235, y: 0, z: -0.014299035}
   m_followingControlPointPosition: {x: -5.748157, y: -1.7080985, z: -0.9713352}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1446967689
 GameObject:
   m_ObjectHideFlags: 0
@@ -1999,6 +2136,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.039981365, y: 0, z: 0.06662555}
   m_followingControlPointPosition: {x: 1.6742518, y: -2.9175935, z: -0.27966607}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1534014693
 GameObject:
   m_ObjectHideFlags: 0
@@ -2045,6 +2187,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.26797426, y: 0, z: -0.120205164}
   m_followingControlPointPosition: {x: -1.0939168, y: 1.2014818, z: 3.5899994}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1605569296
 GameObject:
   m_ObjectHideFlags: 0
@@ -2091,6 +2238,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.023200836, y: 0, z: 0.0884429}
   m_followingControlPointPosition: {x: 0.15042987, y: -0.10157418, z: -0.7719878}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1614952848
 GameObject:
   m_ObjectHideFlags: 0
@@ -2137,6 +2289,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.039254766, y: 0, z: 0.07889486}
   m_followingControlPointPosition: {x: 1.2855636, y: -2.1833425, z: -0.40320194}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &1733954120
 GameObject:
   m_ObjectHideFlags: 0
@@ -2276,7 +2433,7 @@ ParticleSystem:
   moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 1
-  randomSeed: 436223864
+  randomSeed: -830395185
   InitialModule:
     serializedVersion: 3
     enabled: 1
@@ -2672,7 +2829,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
     randomizeRotationDirection: 0
-    maxNumParticles: 100
+    maxNumParticles: 150
     size3D: 0
     rotation3D: 0
     gravityModifier:
@@ -2833,7 +2990,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 8
+      scalar: 30
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -4673,7 +4830,7 @@ ParticleSystem:
     lifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 0.1
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -4714,7 +4871,7 @@ ParticleSystem:
     minVertexDistance: 0.2
     textureMode: 0
     worldSpace: 0
-    dieWithParticles: 0
+    dieWithParticles: 1
     sizeAffectsWidth: 1
     sizeAffectsLifetime: 0
     inheritParticleColor: 0
@@ -5559,6 +5716,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.22266684, y: 0.000000059604645, z: -0.00066655874}
   m_followingControlPointPosition: {x: -2.611998, y: -0.023270607, z: 3.5899992}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &2093860275
 GameObject:
   m_ObjectHideFlags: 0
@@ -5605,6 +5767,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: -0.022580685, y: 0, z: 0.045553397}
   m_followingControlPointPosition: {x: 0.42016545, y: -1.1360133, z: -0.7534679}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &2095587044
 GameObject:
   m_ObjectHideFlags: 0
@@ -5651,6 +5818,11 @@ MonoBehaviour:
   m_followingControlPointLocalPosition: {x: 0.06764942, y: 0, z: -0.004849837}
   m_followingControlPointPosition: {x: 0.07357052, y: -0.6034844, z: -0.8792728}
   m_handleMode: 2
+  extraData:
+    c1: 0
+    c2: 0
+    c3: 0
+    c4: 0
 --- !u!1 &2112567396
 GameObject:
   m_ObjectHideFlags: 0
@@ -5680,6 +5852,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   loop: 1
   drawGizmos: 0
+  gizmoColor: {r: 1, g: 1, b: 1, a: 1}
+  m_gizmoSmoothness: 4
+  Internal_AutoConstructMode: 0
 --- !u!4 &2112567398
 Transform:
   m_ObjectHideFlags: 0

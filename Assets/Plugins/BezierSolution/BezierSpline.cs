@@ -3,18 +3,41 @@ using UnityEngine;
 
 namespace BezierSolution
 {
+#if UNITY_EDITOR
+	public enum SplineAutoConstructMode { None = 0, Linear = 1, Smooth1 = 2, Smooth2 = 3 };
+#endif
+
 	[ExecuteInEditMode]
 	public class BezierSpline : MonoBehaviour
 	{
 		private static Material gizmoMaterial;
 
-		private Color gizmoColor = Color.white;
-		private float gizmoStep = 0.05f;
-
 		private List<BezierPoint> endPoints = new List<BezierPoint>();
 
 		public bool loop = false;
 		public bool drawGizmos = false;
+
+		public Color gizmoColor = Color.white;
+		private float gizmoStep = 0.05f;
+		[SerializeField] private int m_gizmoSmoothness = 4;
+		public int gizmoSmoothness
+		{
+			get { return m_gizmoSmoothness; }
+			set
+			{
+				m_gizmoSmoothness = value;
+				gizmoStep = 1f / ( endPoints.Count * Mathf.Clamp( m_gizmoSmoothness, 1, 30 ) );
+			}
+		}
+
+#if UNITY_EDITOR
+		[System.NonSerialized]
+		public bool Internal_IsDirty;
+
+		[SerializeField]
+		[HideInInspector]
+		public SplineAutoConstructMode Internal_AutoConstructMode = SplineAutoConstructMode.None;
+#endif
 
 		public int Count { get { return endPoints.Count; } }
 		public float Length { get { return GetLengthApproximately( 0f, 1f ); } }
@@ -40,6 +63,26 @@ namespace BezierSolution
 		private void OnTransformChildrenChanged()
 		{
 			Refresh();
+		}
+
+		private void LateUpdate()
+		{
+			Internal_CheckDirty();
+		}
+
+		public void Internal_CheckDirty()
+		{
+			if( Internal_IsDirty && endPoints.Count >= 2 )
+			{
+				switch( Internal_AutoConstructMode )
+				{
+					case SplineAutoConstructMode.Linear: ConstructLinearPath(); break;
+					case SplineAutoConstructMode.Smooth1: AutoConstructSpline(); break;
+					case SplineAutoConstructMode.Smooth2: AutoConstructSpline2(); break;
+				}
+
+				Internal_IsDirty = false;
+			}
 		}
 #endif
 
@@ -68,6 +111,18 @@ namespace BezierSolution
 		{
 			endPoints.Clear();
 			GetComponentsInChildren( endPoints );
+
+			gizmoSmoothness = gizmoSmoothness; // Recalculate gizmoStep
+
+#if UNITY_EDITOR
+			for( int i = 0; i < endPoints.Count; i++ )
+			{
+				endPoints[i].Internal_Spline = this;
+				endPoints[i].Internal_Index = i;
+			}
+
+			Internal_IsDirty = true;
+#endif
 		}
 
 		public BezierPoint InsertNewPointAt( int index )
@@ -79,10 +134,12 @@ namespace BezierSolution
 			}
 
 			int prevCount = endPoints.Count;
-
 			BezierPoint point = new GameObject( "Point" ).AddComponent<BezierPoint>();
-			point.transform.SetParent( endPoints.Count == 0 ? transform : ( index == 0 ? endPoints[0].transform.parent : endPoints[index - 1].transform.parent ), false );
-			point.transform.SetSiblingIndex( index == 0 ? 0 : endPoints[index - 1].transform.GetSiblingIndex() + 1 );
+
+			Transform parent = endPoints.Count == 0 ? transform : ( index == 0 ? endPoints[0].transform.parent : endPoints[index - 1].transform.parent );
+			int siblingIndex = index == 0 ? 0 : endPoints[index - 1].transform.GetSiblingIndex() + 1;
+			point.transform.SetParent( parent, false );
+			point.transform.SetSiblingIndex( siblingIndex );
 
 			if( endPoints.Count == prevCount ) // If spline is not automatically Refresh()'ed
 				endPoints.Insert( index, point );
@@ -127,10 +184,7 @@ namespace BezierSolution
 		public void SwapPointsAt( int index1, int index2 )
 		{
 			if( index1 == index2 )
-			{
-				Debug.LogError( "Indices can't be equal to each other" );
 				return;
-			}
 
 			if( index1 < 0 || index1 >= endPoints.Count || index2 < 0 || index2 >= endPoints.Count )
 			{
@@ -139,30 +193,103 @@ namespace BezierSolution
 			}
 
 			BezierPoint point1 = endPoints[index1];
-			int point1SiblingIndex = point1.transform.GetSiblingIndex();
+			BezierPoint point2 = endPoints[index2];
 
-			endPoints[index1] = endPoints[index2];
+			int point1SiblingIndex = point1.transform.GetSiblingIndex();
+			int point2SiblingIndex = point2.transform.GetSiblingIndex();
+
+			Transform point1Parent = point1.transform.parent;
+			Transform point2Parent = point2.transform.parent;
+
+			endPoints[index1] = point2;
 			endPoints[index2] = point1;
 
-			point1.transform.SetSiblingIndex( endPoints[index1].transform.GetSiblingIndex() );
-			endPoints[index1].transform.SetSiblingIndex( point1SiblingIndex );
+			if( point1Parent != point2Parent )
+			{
+				point1.transform.SetParent( point2Parent, true );
+				point2.transform.SetParent( point1Parent, true );
+			}
+
+			point1.transform.SetSiblingIndex( point2SiblingIndex );
+			point2.transform.SetSiblingIndex( point1SiblingIndex );
+
+#if UNITY_EDITOR
+			Refresh();
+#endif
+		}
+
+		public void MovePoint( int previousIndex, int newIndex )
+		{
+			Internal_MovePoint( previousIndex, newIndex, null );
+		}
+
+		public void Internal_MovePoint( int previousIndex, int newIndex, string undo )
+		{
+			if( previousIndex == newIndex )
+				return;
+
+			if( previousIndex < 0 || previousIndex >= endPoints.Count || newIndex < 0 || newIndex >= endPoints.Count )
+			{
+				Debug.LogError( "Indices must be in range [0," + ( endPoints.Count - 1 ) + "]" );
+				return;
+			}
+
+			BezierPoint point1 = endPoints[previousIndex];
+			BezierPoint point2 = endPoints[newIndex];
+
+			if( previousIndex < newIndex )
+			{
+				for( int i = previousIndex; i < newIndex; i++ )
+					endPoints[i] = endPoints[i + 1];
+			}
+			else
+			{
+				for( int i = previousIndex; i > newIndex; i-- )
+					endPoints[i] = endPoints[i - 1];
+			}
+
+			endPoints[newIndex] = point1;
+
+			Transform point2Parent = point2.transform.parent;
+			if( point1.transform.parent != point2Parent )
+			{
+#if UNITY_EDITOR
+				if( undo != null )
+				{
+					UnityEditor.Undo.SetTransformParent( point1.transform, point2Parent, undo );
+					UnityEditor.Undo.RegisterCompleteObjectUndo( point2Parent, undo );
+				}
+				else
+#endif
+					point1.transform.SetParent( point2Parent, true );
+
+				int point2SiblingIndex = point2.transform.GetSiblingIndex();
+				if( previousIndex < newIndex )
+				{
+					if( point1.transform.GetSiblingIndex() < point2SiblingIndex )
+						point1.transform.SetSiblingIndex( point2SiblingIndex );
+					else
+						point1.transform.SetSiblingIndex( point2SiblingIndex + 1 );
+				}
+				else
+				{
+					if( point1.transform.GetSiblingIndex() < point2SiblingIndex )
+						point1.transform.SetSiblingIndex( point2SiblingIndex - 1 );
+					else
+						point1.transform.SetSiblingIndex( point2SiblingIndex );
+				}
+			}
+			else
+				point1.transform.SetSiblingIndex( point2.transform.GetSiblingIndex() );
+
+#if UNITY_EDITOR
+			Refresh();
+#endif
 		}
 
 		public int IndexOf( BezierPoint point )
 		{
 			return endPoints.IndexOf( point );
-		}
-
-		public void DrawGizmos( Color color, int smoothness = 4 )
-		{
-			drawGizmos = true;
-			gizmoColor = color;
-			gizmoStep = 1f / ( endPoints.Count * Mathf.Clamp( smoothness, 1, 30 ) );
-		}
-
-		public void HideGizmos()
-		{
-			drawGizmos = false;
 		}
 
 		public Vector3 GetPoint( float normalizedT )
@@ -243,6 +370,34 @@ namespace BezierSolution
 			return 3f * oneMinusLocalT * oneMinusLocalT * ( startPoint.followingControlPointPosition - startPoint.position ) +
 				   6f * oneMinusLocalT * localT * ( endPoint.precedingControlPointPosition - startPoint.followingControlPointPosition ) +
 				   3f * localT * localT * ( endPoint.position - endPoint.precedingControlPointPosition );
+		}
+
+		public BezierPoint.ExtraData GetExtraData( float normalizedT )
+		{
+			if( !loop )
+			{
+				if( normalizedT <= 0f )
+					return endPoints[0].extraData;
+				else if( normalizedT >= 1f )
+					return endPoints[endPoints.Count - 1].extraData;
+			}
+			else
+			{
+				if( normalizedT < 0f )
+					normalizedT += 1f;
+				else if( normalizedT >= 1f )
+					normalizedT -= 1f;
+			}
+
+			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+
+			int startIndex = (int) t;
+			int endIndex = startIndex + 1;
+
+			if( endIndex == endPoints.Count )
+				endIndex = 0;
+
+			return BezierPoint.ExtraData.LerpUnclamped( endPoints[startIndex].extraData, endPoints[endIndex].extraData, t - startIndex );
 		}
 
 		public float GetLengthApproximately( float startNormalizedT, float endNormalizedT, float accuracy = 50f )
