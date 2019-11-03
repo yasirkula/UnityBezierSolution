@@ -12,5 +12,10 @@ namespace BezierSolution
 		public abstract float NormalizedT { get; set; }
 
 		public abstract void Execute( float deltaTime );
+
+		protected BezierPoint.ExtraData InterpolateExtraDataAsQuaternion( BezierPoint.ExtraData data1, BezierPoint.ExtraData data2, float normalizedT )
+		{
+			return Quaternion.LerpUnclamped( data1, data2, normalizedT );
+		}
 	}
 }

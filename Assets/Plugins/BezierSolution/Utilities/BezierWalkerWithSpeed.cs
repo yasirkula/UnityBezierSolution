@@ -63,7 +63,7 @@ namespace BezierSolution
 				transform.rotation = Quaternion.Lerp( transform.rotation, targetRotation, rotationLerpModifier * deltaTime );
 			}
 			else if( lookAt == LookAtMode.SplineExtraData )
-				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( m_normalizedT ), rotationLerpModifier * deltaTime );
+				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( m_normalizedT, InterpolateExtraDataAsQuaternion ), rotationLerpModifier * deltaTime );
 
 			if( movingForward )
 			{

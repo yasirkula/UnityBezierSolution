@@ -6,6 +6,8 @@
 
 **Forum Thread:** https://forum.unity.com/threads/bezier-solution-open-source.440742/
 
+**Video:** https://www.youtube.com/watch?v=OpniwcFwSY8
+
 ### ABOUT
 
 This asset is a means to create bezier splines in editor and/or during runtime: splines can be created and edited visually in the editor, or by code during runtime.
@@ -102,7 +104,7 @@ The framework comes with some utility functions. These functions are not necessa
 
 - `Vector3 GetPoint( float normalizedT )`
 
-A spline is essentially a mathematical formula with a [0,1] clamped input (usually called *t*), which generates a point on the spline. As the name suggests, this function returns a point on the spline. As *t* goes from 0 to 1, the point moves from the first end point to the last end point (or goes back to first end point, if spline is looping).
+A spline is essentially a mathematical formula with a \[0,1\] clamped input (usually called *t*), which generates a point on the spline. As the name suggests, this function returns a point on the spline. As *t* goes from 0 to 1, the point moves from the first end point to the last end point (or goes back to first end point, if spline is looping).
 
 - `Vector3 GetTangent( float normalizedT )`
 
@@ -112,11 +114,19 @@ Tangent is calculated using the first derivative of the spline formula and gives
 
 Interpolates between the extra data provided at each end point. This data has 4 float components and can implicitly be converted to Vector2, Vector3, Vector4, Quaternion, Rect, Vector2Int, Vector3Int and RectInt.
 
+- `BezierPoint.ExtraData GetExtraData( float normalizedT, ExtraDataLerpFunction lerpFunction )`
+
+Uses a custom function to interpolate between the end points' extra data. For example, BezierWalker components use this function to interpolate the extra data with Quaternion.Lerp.
+
 - `float GetLengthApproximately( float startNormalizedT, float endNormalizedT, float accuracy = 50f )`
 
 Calculates the approximate length of a segment of the spline. To calculate the length, the spline is divided into "accuracy" points and the Euclidean distances between these points are summed up.
 
 **Food For Thought**: BezierSpline has a Length property, which is simply a shorthand for `GetLengthApproximately( 0f, 1f )`.
+
+- `PointIndexTuple GetNearestPointIndicesTo( float normalizedT )`
+
+Returns the indices of the two end points that are closest to *normalizedT*. The *PointIndexTuple* struct also holds a *t* value in range \[0,1\], which can be used to interpolate between the properties of the two end points at these indices.
 
 - `Vector3 FindNearestPointTo( Vector3 worldPos, out float normalizedT, float accuracy = 100f )`
 

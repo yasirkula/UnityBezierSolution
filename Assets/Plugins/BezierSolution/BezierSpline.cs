@@ -10,6 +10,21 @@ namespace BezierSolution
 	[ExecuteInEditMode]
 	public class BezierSpline : MonoBehaviour
 	{
+		public struct PointIndexTuple
+		{
+			public readonly int index1, index2;
+			public readonly float t;
+
+			public PointIndexTuple( int index1, int index2, float t )
+			{
+				this.index1 = index1;
+				this.index2 = index2;
+				this.t = t;
+			}
+		}
+
+		public delegate BezierPoint.ExtraData ExtraDataLerpFunction( BezierPoint.ExtraData data1, BezierPoint.ExtraData data2, float normalizedT );
+
 		private static Material gizmoMaterial;
 
 		private List<BezierPoint> endPoints = new List<BezierPoint>();
@@ -374,6 +389,11 @@ namespace BezierSolution
 
 		public BezierPoint.ExtraData GetExtraData( float normalizedT )
 		{
+			return GetExtraData( normalizedT, BezierPoint.ExtraData.LerpUnclamped );
+		}
+
+		public BezierPoint.ExtraData GetExtraData( float normalizedT, ExtraDataLerpFunction lerpFunction )
+		{
 			if( !loop )
 			{
 				if( normalizedT <= 0f )
@@ -397,7 +417,7 @@ namespace BezierSolution
 			if( endIndex == endPoints.Count )
 				endIndex = 0;
 
-			return BezierPoint.ExtraData.LerpUnclamped( endPoints[startIndex].extraData, endPoints[endIndex].extraData, t - startIndex );
+			return lerpFunction( endPoints[startIndex].extraData, endPoints[endIndex].extraData, t - startIndex );
 		}
 
 		public float GetLengthApproximately( float startNormalizedT, float endNormalizedT, float accuracy = 50f )
@@ -429,6 +449,34 @@ namespace BezierSolution
 			length += Vector3.Distance( lastPoint, GetPoint( endNormalizedT ) );
 
 			return length;
+		}
+
+		public PointIndexTuple GetNearestPointIndicesTo( float normalizedT )
+		{
+			if( !loop )
+			{
+				if( normalizedT <= 0f )
+					return new PointIndexTuple( 0, 1, 0f );
+				else if( normalizedT >= 1f )
+					return new PointIndexTuple( endPoints.Count - 1, endPoints.Count - 1, 1f );
+			}
+			else
+			{
+				if( normalizedT < 0f )
+					normalizedT += 1f;
+				else if( normalizedT >= 1f )
+					normalizedT -= 1f;
+			}
+
+			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+
+			int startIndex = (int) t;
+			int endIndex = startIndex + 1;
+
+			if( endIndex == endPoints.Count )
+				endIndex = 0;
+
+			return new PointIndexTuple( startIndex, endIndex, t - startIndex );
 		}
 
 		public Vector3 FindNearestPointTo( Vector3 worldPos, float accuracy = 100f )

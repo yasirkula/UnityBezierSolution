@@ -70,7 +70,7 @@ namespace BezierSolution
 					if( lookAt == LookAtMode.Forward )
 						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( spline.GetTangent( t ) ), rotationLerpModifier * deltaTime );
 					else if( lookAt == LookAtMode.SplineExtraData )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t ), rotationLerpModifier * deltaTime );
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t, InterpolateExtraDataAsQuaternion ), rotationLerpModifier * deltaTime );
 				}
 				else
 				{
@@ -79,7 +79,7 @@ namespace BezierSolution
 					if( lookAt == LookAtMode.Forward )
 						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( -spline.GetTangent( t ) ), rotationLerpModifier * deltaTime );
 					else if( lookAt == LookAtMode.SplineExtraData )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t ), rotationLerpModifier * deltaTime );
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t, InterpolateExtraDataAsQuaternion ), rotationLerpModifier * deltaTime );
 				}
 			}
 		}
