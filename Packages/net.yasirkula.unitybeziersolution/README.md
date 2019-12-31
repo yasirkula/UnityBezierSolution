@@ -1,12 +1,13 @@
-= Bezier Solution =
+# Bezier Solution
 
 Online documentation & example code available at: https://github.com/yasirkula/UnityBezierSolution
+
 E-mail: yasirkula@gmail.com
 
-1. ABOUT
+## ABOUT
 This plugin helps you create bezier splines either visually in editor or by code during gameplay. Includes some utility functions like finding the closest point on the spline or travelling the spline with constant speed.
 
-2. HOW TO
+## HOW TO
 To create a new spline in the editor, follow "GameObject - Bezier Spline". Now you can select the end points of the spline in the Scene view and translate/rotate/scale or delete/duplicate them as you wish (each end point has 2 control points, which can also be translated). Here are some of the interesting properties of a spline:
 
 - Loop: connects the first end point and the last end point of the spline

@@ -1,0 +1,14 @@
+{
+    "name": "Unity.BezierSolution.Editor",
+    "references": [
+        "GUID:7a90b45aa219cd5409fbf7d974d92640"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}
