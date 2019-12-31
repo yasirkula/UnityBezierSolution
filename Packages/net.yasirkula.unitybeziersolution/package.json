@@ -10,5 +10,12 @@
   },
   "repository": "https://github.com/yasirkula/UnityBezierSolution",
   "license": "MIT",
+  "samples": [
+    {
+      "displayName": "SplineDemo",
+      "description": "Spline demo",
+      "path": "Samples~/SplineDemo"
+    }
+  ],
   "type": "library"
 }
