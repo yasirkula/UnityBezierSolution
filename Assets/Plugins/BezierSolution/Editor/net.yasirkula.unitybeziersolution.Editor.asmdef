@@ -1,0 +1,14 @@
+{
+    "name": "net.yasirkula.unitybeziersolution.Editor",
+    "references": [
+        "GUID:01d6dd73a875fc945804f86daee78cfb"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}
