@@ -2,7 +2,7 @@
 
 ![intro](Images/1.png)
 
-**Available on Asset Store:** https://www.assetstore.unity3d.com/en/#!/content/113074
+**Available on Asset Store:** https://assetstore.unity.com/packages/tools/level-design/bezier-solution-113074
 
 **Forum Thread:** https://forum.unity.com/threads/bezier-solution-open-source.440742/
 
