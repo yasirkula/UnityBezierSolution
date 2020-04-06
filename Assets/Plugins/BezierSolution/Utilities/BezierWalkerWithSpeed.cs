@@ -63,21 +63,12 @@ namespace BezierSolution
 				transform.rotation = Quaternion.Lerp( transform.rotation, targetRotation, rotationLerpModifier * deltaTime );
 			}
 			else if( lookAt == LookAtMode.SplineExtraData )
-				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( m_normalizedT, InterpolateExtraDataAsQuaternion ), rotationLerpModifier * deltaTime );
+				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( m_normalizedT, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
 
 			if( movingForward )
 			{
 				if( m_normalizedT >= 1f )
 				{
-					if( !onPathCompletedCalledAt1 )
-					{
-						onPathCompletedCalledAt1 = true;
-#if UNITY_EDITOR
-						if( UnityEditor.EditorApplication.isPlaying )
-#endif
-							onPathCompleted.Invoke();
-					}
-
 					if( travelMode == TravelMode.Once )
 						m_normalizedT = 1f;
 					else if( travelMode == TravelMode.Loop )
@@ -86,6 +77,15 @@ namespace BezierSolution
 					{
 						m_normalizedT = 2f - m_normalizedT;
 						isGoingForward = !isGoingForward;
+					}
+
+					if( !onPathCompletedCalledAt1 )
+					{
+						onPathCompletedCalledAt1 = true;
+#if UNITY_EDITOR
+						if( UnityEditor.EditorApplication.isPlaying )
+#endif
+							onPathCompleted.Invoke();
 					}
 				}
 				else
@@ -97,15 +97,6 @@ namespace BezierSolution
 			{
 				if( m_normalizedT <= 0f )
 				{
-					if( !onPathCompletedCalledAt0 )
-					{
-						onPathCompletedCalledAt0 = true;
-#if UNITY_EDITOR
-						if( UnityEditor.EditorApplication.isPlaying )
-#endif
-							onPathCompleted.Invoke();
-					}
-
 					if( travelMode == TravelMode.Once )
 						m_normalizedT = 0f;
 					else if( travelMode == TravelMode.Loop )
@@ -114,6 +105,15 @@ namespace BezierSolution
 					{
 						m_normalizedT = -m_normalizedT;
 						isGoingForward = !isGoingForward;
+					}
+
+					if( !onPathCompletedCalledAt0 )
+					{
+						onPathCompletedCalledAt0 = true;
+#if UNITY_EDITOR
+						if( UnityEditor.EditorApplication.isPlaying )
+#endif
+							onPathCompleted.Invoke();
 					}
 				}
 				else

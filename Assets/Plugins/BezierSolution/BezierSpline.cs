@@ -25,6 +25,7 @@ namespace BezierSolution
 
 		public delegate BezierPoint.ExtraData ExtraDataLerpFunction( BezierPoint.ExtraData data1, BezierPoint.ExtraData data2, float normalizedT );
 
+		private static readonly ExtraDataLerpFunction defaultExtraDataLerpFunction = BezierPoint.ExtraData.LerpUnclamped;
 		private static Material gizmoMaterial;
 
 		private List<BezierPoint> endPoints = new List<BezierPoint>();
@@ -389,7 +390,7 @@ namespace BezierSolution
 
 		public BezierPoint.ExtraData GetExtraData( float normalizedT )
 		{
-			return GetExtraData( normalizedT, BezierPoint.ExtraData.LerpUnclamped );
+			return GetExtraData( normalizedT, defaultExtraDataLerpFunction );
 		}
 
 		public BezierPoint.ExtraData GetExtraData( float normalizedT, ExtraDataLerpFunction lerpFunction )
