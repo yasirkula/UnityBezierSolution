@@ -8,6 +8,8 @@
 
 **Video:** https://www.youtube.com/watch?v=OpniwcFwSY8
 
+**[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
+
 ### ABOUT
 
 This asset is a means to create bezier splines in editor and/or during runtime: splines can be created and edited visually in the editor, or by code during runtime.
