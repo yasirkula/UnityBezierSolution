@@ -10,13 +10,21 @@
 
 **[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
 
-### ABOUT
+## ABOUT
 
 This asset is a means to create bezier splines in editor and/or during runtime: splines can be created and edited visually in the editor, or by code during runtime.
 
-### CREATING & EDITING A NEW SPLINE IN EDITOR
+## INSTALLATION
 
-First, you should import [BezierSolution.unitypackage](https://github.com/yasirkula/UnityBezierSolution/releases) to your project.
+There are 4 ways to install this plugin:
+
+- import [BezierSolution.unitypackage](https://github.com/yasirkula/UnityBezierSolution/releases) via *Assets-Import Package*
+- clone/[download](https://github.com/yasirkula/UnityBezierSolution/archive/master.zip) this repository and move the *Plugins* folder to your Unity project's *Assets* folder
+- import it from [Asset Store](https://assetstore.unity.com/packages/tools/level-design/bezier-solution-113074)
+- *(via Package Manager)* add the following line to *Packages/manifest.json*:
+  - `"com.yasirkula.beziersolution": "https://github.com/yasirkula/UnityBezierSolution.git",`
+
+## CREATING & EDITING A NEW SPLINE IN EDITOR
 
 To create a new spline in the editor, follow "GameObject - Bezier Spline".
 
@@ -40,7 +48,7 @@ The user interface for the spline editor should be pretty self-explanatory. Howe
 
 **Extra Data:** end points can store additional data that can hold 4 floats. You can interpolate between points' extra data by code (see *UTILITY FUNCTIONS* section below). This extra data is especially useful for moving a camera on a bezier spline while setting different camera rotations at each end point (the BezierWalker components can read that data). You can click the **C** button to store the Scene camera's current rotation in this extra data. Then, you can visualize this data by clicking the **V** button
 
-### CREATING & EDITING A NEW SPLINE BY CODE
+## CREATING & EDITING A NEW SPLINE BY CODE
 
 - **Create a new bezier spline**
 
@@ -100,7 +108,7 @@ If you want to create a linear path between the end points of the spline, you ca
 
 ![auto-construct](Images/4_2.png)
 
-### UTILITY FUNCTIONS
+## UTILITY FUNCTIONS
 
 The framework comes with some utility functions. These functions are not necessarily perfect but most of the time, they get the job done. Though, if you want, you can use this framework to just create splines and then apply your own logic to them.
 
@@ -138,7 +146,7 @@ Finds the nearest point on the spline to any given point in 3D space. The normal
 
 Moves a point (normalizedT) on the spline deltaMovement units ahead and returns the resulting point. The normalizedT parameter is passed by reference to keep track of the new *t* parameter.
 
-### OTHER COMPONENTS
+## OTHER COMPONENTS
 
 Framework comes with 3 additional components that may help you move objects or particles along splines. These components are located in the Utilities folder.
 
