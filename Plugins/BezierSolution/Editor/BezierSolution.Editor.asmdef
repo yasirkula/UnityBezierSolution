@@ -1,6 +1,8 @@
 {
     "name": "BezierSolution.Editor",
-    "references": [],
+    "references": [
+        "GUID:624c061ee4dfdaf4787b9c0bb51b4c1f"
+    ],
     "includePlatforms": [
         "Editor"
     ],
