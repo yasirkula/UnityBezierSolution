@@ -1,7 +1,5 @@
 # Unity Bezier Solution
 
-[![openupm](https://img.shields.io/npm/v/com.yasirkula.beziersolution?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.yasirkula.beziersolution/)
-
 ![intro](Images/1.png)
 
 **Available on Asset Store:** https://assetstore.unity.com/packages/tools/level-design/bezier-solution-113074
@@ -23,10 +21,10 @@ There are 5 ways to install this plugin:
 - import [BezierSolution.unitypackage](https://github.com/yasirkula/UnityBezierSolution/releases) via *Assets-Import Package*
 - clone/[download](https://github.com/yasirkula/UnityBezierSolution/archive/master.zip) this repository and move the *Plugins* folder to your Unity project's *Assets* folder
 - import it from [Asset Store](https://assetstore.unity.com/packages/tools/level-design/bezier-solution-113074)
-- *(via Package Manager with [OpenUPM](https://openupm.com))* install [openupm-cli](https://github.com/openupm/openupm-cli) then run:
-  - `openupm add com.yasirkula.beziersolution`
-- *(via Package Manager with Git URL)* add the following line to *Packages/manifest.json*:
+- *(via Package Manager)* add the following line to *Packages/manifest.json*:
   - `"com.yasirkula.beziersolution": "https://github.com/yasirkula/UnityBezierSolution.git",`
+- *(via [OpenUPM](https://openupm.com))* after installing [openupm-cli](https://github.com/openupm/openupm-cli), run the following command:
+  - `openupm add com.yasirkula.beziersolution`
 
 ## CREATING & EDITING A NEW SPLINE IN EDITOR
 
