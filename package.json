@@ -2,6 +2,9 @@
   "name": "com.yasirkula.beziersolution",
   "displayName": "Bezier Solution",
   "version": "1.27.1",
+  "documentationUrl": "https://github.com/yasirkula/UnityBezierSolution",
+  "changelogUrl": "https://github.com/yasirkula/UnityBezierSolution/releases",
+  "licensesUrl": "https://github.com/yasirkula/UnityBezierSolution/blob/master/LICENSE.txt",
   "description": "This asset is a means to create bezier splines in editor and/or during runtime: splines can be created and edited visually in the editor, or by code during runtime.",
   "hideInEditor": false
 }
