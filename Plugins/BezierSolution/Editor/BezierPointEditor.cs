@@ -40,9 +40,15 @@ namespace BezierSolution.Extras
 
 		private const float CONTROL_POINTS_MINIMUM_SAFE_DISTANCE_SQR = 0.05f * 0.05f;
 
+		private const string MOVE_MULTIPLE_POINTS_IN_OPPOSITE_DIRECTIONS_PREF = "BezierSolution_OppositeTransformation";
+		private const string VISUALIZE_EXTRA_DATA_AS_FRUSTUM_PREF = "BezierSolution_VisualizeFrustum";
+
 		private static readonly Color RESET_POINT_BUTTON_COLOR = new Color( 1f, 1f, 0.65f );
 		private static readonly Color REMOVE_POINT_BUTTON_COLOR = new Color( 1f, 0.65f, 0.65f );
 		private static readonly GUIContent MULTI_EDIT_TIP = new GUIContent( "Tip: Hold Shift to affect all points' Transforms" );
+		private static readonly GUIContent OPPOSITE_TRANSFORMATION_OFF_TIP = new GUIContent( "(in THE SAME direction - hit C to toggle)" );
+		private static readonly GUIContent OPPOSITE_TRANSFORMATION_ON_TIP = new GUIContent( "(in OPPOSITE directions - hit C to toggle)" );
+		private static readonly GUIContent INSERT_POINT_PRESERVE_SHAPE = new GUIContent( "Preserve Shape", "Spline's shape will be preserved but the neighboring end points' 'Handle Mode' will no longer be 'Mirrored'" );
 		private static readonly GUIContent EXTRA_DATA_SET_AS_CAMERA = new GUIContent( "C", "Set as Scene camera's current rotation" );
 		private static readonly GUIContent EXTRA_DATA_VIEW_AS_FRUSTUM = new GUIContent( "V", "Visualize data as camera frustum in Scene" );
 
@@ -51,13 +57,22 @@ namespace BezierSolution.Extras
 		private BezierPoint[] allPoints;
 		private int pointCount;
 
+		private Vector3[] pointInitialPositions;
+		private Quaternion[] pointInitialRotations;
+		private Vector3[] pointInitialScales;
+		private Vector3[] precedingPointInitialPositions;
+		private Vector3[] followingPointInitialPositions;
+		private bool allPointsModified;
+
 		private Quaternion[] precedingPointRotations;
 		private Quaternion[] followingPointRotations;
 		private bool controlPointRotationsInitialized;
 
+		private bool moveMultiplePointsInOppositeDirections;
+
 		// Having two variables allow us to show frustum gizmos only when a point is selected
 		// and not lose the original value when OnDisable is called
-		private static bool m_visualizeExtraDataAsFrustum;
+		private bool m_visualizeExtraDataAsFrustum;
 		public static bool VisualizeExtraDataAsFrustum { get; private set; }
 
 		private Tool previousTool = Tool.None;
@@ -67,6 +82,12 @@ namespace BezierSolution.Extras
 			Object[] points = targets;
 			pointCount = points.Length;
 			allPoints = new BezierPoint[pointCount];
+
+			pointInitialPositions = new Vector3[pointCount];
+			pointInitialRotations = new Quaternion[pointCount];
+			pointInitialScales = new Vector3[pointCount];
+			precedingPointInitialPositions = new Vector3[pointCount];
+			followingPointInitialPositions = new Vector3[pointCount];
 
 			precedingPointRotations = new Quaternion[pointCount];
 			followingPointRotations = new Quaternion[pointCount];
@@ -79,7 +100,6 @@ namespace BezierSolution.Extras
 				selection = new SplineHolder[1] { new SplineHolder( point.GetComponentInParent<BezierSpline>(), new BezierPoint[1] { point } ) };
 				allSplines = selection[0].spline ? new BezierSpline[1] { selection[0].spline } : new BezierSpline[0];
 				allPoints[0] = point;
-
 			}
 			else
 			{
@@ -145,7 +165,9 @@ namespace BezierSolution.Extras
 					selection[i].spline.Refresh();
 			}
 
-			VisualizeExtraDataAsFrustum = m_visualizeExtraDataAsFrustum;
+			moveMultiplePointsInOppositeDirections = EditorPrefs.GetBool( MOVE_MULTIPLE_POINTS_IN_OPPOSITE_DIRECTIONS_PREF, false );
+			VisualizeExtraDataAsFrustum = m_visualizeExtraDataAsFrustum = EditorPrefs.GetBool( VISUALIZE_EXTRA_DATA_AS_FRUSTUM_PREF, false );
+
 			Tools.hidden = true;
 
 			Undo.undoRedoPerformed -= OnUndoRedo;
@@ -168,6 +190,9 @@ namespace BezierSolution.Extras
 
 			if( CheckCommands() )
 				return;
+
+			Event e = Event.current;
+			Tool tool = Tools.current;
 
 			// OnSceneGUI is called separately for each selected point,
 			// make sure that the spline is drawn only once, not multiple times
@@ -193,18 +218,49 @@ namespace BezierSolution.Extras
 					}
 				}
 
-				if( allPoints.Length > 1 )
+				if( allPoints.Length > 1 && ( tool == Tool.Move || tool == Tool.Rotate || tool == Tool.Scale ) )
 				{
-					Handles.BeginGUI();
 					GUIStyle style = "PreOverlayLabel"; // Taken from: https://github.com/Unity-Technologies/UnityCsReference/blob/f78f4093c8a2b45949a847cdc704cf209dcf2f36/Editor/Mono/EditorGUI.cs#L629
-					EditorGUI.DropShadowLabel( new Rect( new Vector2( 0f, 0f ), style.CalcSize( MULTI_EDIT_TIP ) ), MULTI_EDIT_TIP, style );
+					Rect multiEditTipRect = new Rect( Vector2.zero, style.CalcSize( MULTI_EDIT_TIP ) );
+
+					Handles.BeginGUI();
+
+					EditorGUI.DropShadowLabel( multiEditTipRect, MULTI_EDIT_TIP, style );
+					if( tool == Tool.Move || tool == Tool.Rotate )
+					{
+						Rect multiEditOppositeTransformationTipRect = new Rect( new Vector2( multiEditTipRect.width + 4f, 0f ), style.CalcSize( moveMultiplePointsInOppositeDirections ? OPPOSITE_TRANSFORMATION_ON_TIP : OPPOSITE_TRANSFORMATION_OFF_TIP ) );
+						EditorGUI.DropShadowLabel( multiEditOppositeTransformationTipRect, moveMultiplePointsInOppositeDirections ? OPPOSITE_TRANSFORMATION_ON_TIP : OPPOSITE_TRANSFORMATION_OFF_TIP, style );
+					}
+
 					Handles.EndGUI();
+
+					if( e.type == EventType.KeyUp && e.keyCode == KeyCode.C && ( tool == Tool.Move || tool == Tool.Rotate ) )
+					{
+						moveMultiplePointsInOppositeDirections = !moveMultiplePointsInOppositeDirections;
+						EditorPrefs.SetBool( MOVE_MULTIPLE_POINTS_IN_OPPOSITE_DIRECTIONS_PREF, moveMultiplePointsInOppositeDirections );
+					}
+				}
+
+				if( e.type == EventType.MouseDown && e.button == 0 )
+				{
+					// Cache initial Transform values of the points
+					for( int i = 0; i < allPoints.Length; i++ )
+					{
+						BezierPoint p = allPoints[i];
+
+						pointInitialPositions[i] = p.position;
+						pointInitialRotations[i] = p.rotation;
+						pointInitialScales[i] = p.localScale;
+						precedingPointInitialPositions[i] = p.precedingControlPointPosition;
+						followingPointInitialPositions[i] = p.followingControlPointPosition;
+					}
+
+					allPointsModified = false;
 				}
 			}
 
 			// When Control key is pressed, BezierPoint gizmos should be drawn on top of Transform handles in order to allow selecting/deselecting points
 			// If Alt key is pressed, Transform handles aren't drawn at all, so BezierPoint gizmos can be drawn immediately
-			Event e = Event.current;
 			if( e.alt || !e.control )
 				BezierUtils.DrawBezierPoint( point, point.Internal_Index + 1, true );
 
@@ -222,7 +278,6 @@ namespace BezierSolution.Extras
 				}
 			}
 
-			Tool tool = Tools.current;
 			if( previousTool != tool )
 			{
 				controlPointRotationsInitialized = false;
@@ -248,7 +303,7 @@ namespace BezierSolution.Extras
 
 					// No need to show gizmos for control points in Autoconstruct mode
 					Vector3 position;
-					if( !point.Internal_Spline || point.Internal_Spline.Internal_AutoConstructMode == SplineAutoConstructMode.None )
+					if( BezierUtils.ShowControlPoints && ( !point.Internal_Spline || point.Internal_Spline.Internal_AutoConstructMode == SplineAutoConstructMode.None ) )
 					{
 						EditorGUI.BeginChangeCheck();
 						position = Handles.PositionHandle( point.precedingControlPointPosition, Tools.pivotRotation == PivotRotation.Local ? precedingPointRotations[pointIndex] : Quaternion.identity );
@@ -256,6 +311,37 @@ namespace BezierSolution.Extras
 						{
 							Undo.RecordObject( point, "Move Control Point" );
 							point.precedingControlPointPosition = position;
+
+							if( e.shift && allPoints.Length > 1 )
+							{
+								Vector3 delta = Matrix4x4.TRS( precedingPointInitialPositions[pointIndex], Tools.pivotRotation == PivotRotation.Local ? precedingPointRotations[pointIndex] : Quaternion.identity, Vector3.Distance( precedingPointInitialPositions[pointIndex], point.position ) * Vector3.one ).inverse.MultiplyPoint3x4( position );
+								if( moveMultiplePointsInOppositeDirections )
+									delta = -delta;
+
+								for( int i = 0; i < allPoints.Length; i++ )
+								{
+									if( i != pointIndex )
+									{
+										Undo.RecordObject( allPoints[i], "Move Control Point" );
+										allPoints[i].precedingControlPointPosition = Matrix4x4.TRS( precedingPointInitialPositions[i], Tools.pivotRotation == PivotRotation.Local ? precedingPointRotations[i] : Quaternion.identity, Vector3.Distance( precedingPointInitialPositions[i], allPoints[i].position ) * Vector3.one ).MultiplyPoint3x4( delta );
+									}
+								}
+
+								allPointsModified = true;
+							}
+							else if( !e.shift && allPointsModified ) // If shift is released before the left mouse button, reset other points' positions
+							{
+								for( int i = 0; i < allPoints.Length; i++ )
+								{
+									if( i != pointIndex )
+									{
+										Undo.RecordObject( allPoints[i], "Move Control Point" );
+										allPoints[i].precedingControlPointPosition = precedingPointInitialPositions[i];
+									}
+								}
+
+								allPointsModified = false;
+							}
 						}
 
 						EditorGUI.BeginChangeCheck();
@@ -264,6 +350,37 @@ namespace BezierSolution.Extras
 						{
 							Undo.RecordObject( point, "Move Control Point" );
 							point.followingControlPointPosition = position;
+
+							if( e.shift && allPoints.Length > 1 )
+							{
+								Vector3 delta = Matrix4x4.TRS( followingPointInitialPositions[pointIndex], Tools.pivotRotation == PivotRotation.Local ? followingPointRotations[pointIndex] : Quaternion.identity, Vector3.Distance( followingPointInitialPositions[pointIndex], point.position ) * Vector3.one ).inverse.MultiplyPoint3x4( position );
+								if( moveMultiplePointsInOppositeDirections )
+									delta = -delta;
+
+								for( int i = 0; i < allPoints.Length; i++ )
+								{
+									if( i != pointIndex )
+									{
+										Undo.RecordObject( allPoints[i], "Move Control Point" );
+										allPoints[i].followingControlPointPosition = Matrix4x4.TRS( followingPointInitialPositions[i], Tools.pivotRotation == PivotRotation.Local ? followingPointRotations[i] : Quaternion.identity, Vector3.Distance( followingPointInitialPositions[i], allPoints[i].position ) * Vector3.one ).MultiplyPoint3x4( delta );
+									}
+								}
+
+								allPointsModified = true;
+							}
+							else if( !e.shift && allPointsModified ) // If shift is released before the left mouse button, reset other points' positions
+							{
+								for( int i = 0; i < allPoints.Length; i++ )
+								{
+									if( i != pointIndex )
+									{
+										Undo.RecordObject( allPoints[i], "Move Control Point" );
+										allPoints[i].followingControlPointPosition = followingPointInitialPositions[i];
+									}
+								}
+
+								allPointsModified = false;
+							}
 						}
 					}
 
@@ -271,24 +388,41 @@ namespace BezierSolution.Extras
 					position = Handles.PositionHandle( point.position, Tools.pivotRotation == PivotRotation.Local ? point.rotation : Quaternion.identity );
 					if( EditorGUI.EndChangeCheck() )
 					{
-						if( !e.shift )
-						{
-							Undo.RecordObject( point, "Move Point" );
-							Undo.RecordObject( point.transform, "Move Point" );
+						Undo.RecordObject( point, "Move Point" );
+						Undo.RecordObject( point.transform, "Move Point" );
+						point.position = position;
 
-							point.position = position;
-						}
-						else
+						if( e.shift && allPoints.Length > 1 )
 						{
-							Vector3 delta = position - point.position;
+							Vector3 delta = position - pointInitialPositions[pointIndex];
+							if( moveMultiplePointsInOppositeDirections )
+								delta = -delta;
 
 							for( int i = 0; i < allPoints.Length; i++ )
 							{
-								Undo.RecordObject( allPoints[i], "Move Point" );
-								Undo.RecordObject( allPoints[i].transform, "Move Point" );
-
-								allPoints[i].position += delta;
+								if( i != pointIndex )
+								{
+									Undo.RecordObject( allPoints[i], "Move Point" );
+									Undo.RecordObject( allPoints[i].transform, "Move Point" );
+									allPoints[i].position = pointInitialPositions[i] + delta;
+								}
 							}
+
+							allPointsModified = true;
+						}
+						else if( !e.shift && allPointsModified ) // If shift is released before the left mouse button, reset other points' positions
+						{
+							for( int i = 0; i < allPoints.Length; i++ )
+							{
+								if( i != pointIndex )
+								{
+									Undo.RecordObject( allPoints[i], "Move Point" );
+									Undo.RecordObject( allPoints[i].transform, "Move Point" );
+									allPoints[i].position = pointInitialPositions[i];
+								}
+							}
+
+							allPointsModified = false;
 						}
 					}
 
@@ -317,27 +451,42 @@ namespace BezierSolution.Extras
 					Quaternion rotation = Handles.RotationHandle( handleRotation, point.position );
 					if( EditorGUI.EndChangeCheck() )
 					{
-						float angle;
-						Vector3 axis;
-						( Quaternion.Inverse( handleRotation ) * rotation ).ToAngleAxis( out angle, out axis );
-						axis = handleRotation * axis;
+						// "rotation * Quaternion.Inverse( handleRotation )": World-space delta rotation
+						// "delta rotation * point.rotation": Applying world-space delta rotation to current rotation
+						Quaternion pointFinalRotation = rotation * Quaternion.Inverse( handleRotation ) * point.rotation;
 
-						if( !e.shift )
+						Undo.RecordObject( point.transform, "Rotate Point" );
+						point.rotation = pointFinalRotation;
+
+						if( e.shift && allPoints.Length > 1 )
 						{
-							Undo.RecordObject( point.transform, "Rotate Point" );
+							Quaternion delta = pointFinalRotation * Quaternion.Inverse( pointInitialRotations[pointIndex] );
+							if( moveMultiplePointsInOppositeDirections )
+								delta = Quaternion.Inverse( delta );
 
-							Vector3 localAxis = point.transform.InverseTransformDirection( axis );
-							point.localRotation *= Quaternion.AngleAxis( angle, localAxis );
+							for( int i = 0; i < allPoints.Length; i++ )
+							{
+								if( i != pointIndex )
+								{
+									Undo.RecordObject( allPoints[i].transform, "Rotate Point" );
+									allPoints[i].rotation = delta * pointInitialRotations[i];
+								}
+							}
+
+							allPointsModified = true;
 						}
-						else
+						else if( !e.shift && allPointsModified ) // If shift is released before the left mouse button, reset other points' rotations
 						{
 							for( int i = 0; i < allPoints.Length; i++ )
 							{
-								Undo.RecordObject( allPoints[i].transform, "Rotate Point" );
-
-								Vector3 localAxis = allPoints[i].transform.InverseTransformDirection( axis );
-								allPoints[i].localRotation *= Quaternion.AngleAxis( angle, localAxis );
+								if( i != pointIndex )
+								{
+									Undo.RecordObject( allPoints[i].transform, "Rotate Point" );
+									allPoints[i].rotation = pointInitialRotations[i];
+								}
 							}
+
+							allPointsModified = false;
 						}
 
 						if( Tools.pivotRotation == PivotRotation.Global )
@@ -350,15 +499,13 @@ namespace BezierSolution.Extras
 					Vector3 scale = Handles.ScaleHandle( point.localScale, point.position, point.rotation, HandleUtility.GetHandleSize( point.position ) );
 					if( EditorGUI.EndChangeCheck() )
 					{
-						if( !e.shift )
-						{
-							Undo.RecordObject( point.transform, "Scale Point" );
-							point.localScale = scale;
-						}
-						else
+						Undo.RecordObject( point.transform, "Scale Point" );
+						point.localScale = scale;
+
+						if( e.shift && allPoints.Length > 1 )
 						{
 							Vector3 delta = new Vector3( 1f, 1f, 1f );
-							Vector3 prevScale = point.localScale;
+							Vector3 prevScale = pointInitialScales[pointIndex];
 							if( prevScale.x != 0f )
 								delta.x = scale.x / prevScale.x;
 							if( prevScale.y != 0f )
@@ -368,12 +515,30 @@ namespace BezierSolution.Extras
 
 							for( int i = 0; i < allPoints.Length; i++ )
 							{
-								Undo.RecordObject( allPoints[i].transform, "Scale Point" );
+								if( i != pointIndex )
+								{
+									prevScale = pointInitialScales[i];
+									prevScale.Scale( delta );
 
-								prevScale = allPoints[i].localScale;
-								prevScale.Scale( delta );
-								allPoints[i].localScale = prevScale;
+									Undo.RecordObject( allPoints[i].transform, "Scale Point" );
+									allPoints[i].localScale = prevScale;
+								}
 							}
+
+							allPointsModified = true;
+						}
+						else if( !e.shift && allPointsModified ) // If shift is released before the left mouse button, reset other points' scales
+						{
+							for( int i = 0; i < allPoints.Length; i++ )
+							{
+								if( i != pointIndex )
+								{
+									Undo.RecordObject( allPoints[i].transform, "Scale Point" );
+									allPoints[i].localScale = pointInitialScales[i];
+								}
+							}
+
+							allPointsModified = false;
 						}
 					}
 
@@ -538,11 +703,29 @@ namespace BezierSolution.Extras
 
 			EditorGUILayout.Space();
 
-			if( GUILayout.Button( "Insert Point Before" ) )
-				InsertNewPoints( false );
+			bool allSplinesUsingAutoConstructMode = true;
+			for( int i = 0; i < allSplines.Length; i++ )
+			{
+				if( allSplines[i] && allSplines[i].Internal_AutoConstructMode == SplineAutoConstructMode.None )
+				{
+					allSplinesUsingAutoConstructMode = false;
+					break;
+				}
+			}
 
+			GUILayout.BeginHorizontal();
+			if( GUILayout.Button( "Insert Point Before" ) )
+				InsertNewPoints( false, false );
+			if( !allSplinesUsingAutoConstructMode && GUILayout.Button( INSERT_POINT_PRESERVE_SHAPE, GUILayout.Width( 155f ) ) )
+				InsertNewPoints( false, true );
+			GUILayout.EndHorizontal();
+
+			GUILayout.BeginHorizontal();
 			if( GUILayout.Button( "Insert Point After" ) )
-				InsertNewPoints( true );
+				InsertNewPoints( true, false );
+			if( !allSplinesUsingAutoConstructMode && GUILayout.Button( INSERT_POINT_PRESERVE_SHAPE, GUILayout.Width( 155f ) ) )
+				InsertNewPoints( true, true );
+			GUILayout.EndHorizontal();
 
 			EditorGUILayout.Space();
 
@@ -702,6 +885,8 @@ namespace BezierSolution.Extras
 			{
 				VisualizeExtraDataAsFrustum = m_visualizeExtraDataAsFrustum;
 				SceneView.RepaintAll();
+
+				EditorPrefs.SetBool( VISUALIZE_EXTRA_DATA_AS_FRUSTUM_PREF, m_visualizeExtraDataAsFrustum );
 			}
 
 			GUILayout.EndHorizontal();
@@ -773,7 +958,7 @@ namespace BezierSolution.Extras
 			return false;
 		}
 
-		private void InsertNewPoints( bool insertAfter )
+		private void InsertNewPoints( bool insertAfter, bool preserveShape )
 		{
 			Undo.IncrementCurrentGroup();
 
@@ -792,33 +977,64 @@ namespace BezierSolution.Extras
 						if( insertAfter )
 							pointIndex++;
 
-						Vector3 position;
+						Vector3 position, followingControlPointPosition;
 						if( spline.Count >= 2 )
 						{
-							if( pointIndex > 0 && pointIndex < spline.Count )
-								position = ( spline[pointIndex - 1].localPosition + spline[pointIndex].localPosition ) * 0.5f;
-							else if( pointIndex == 0 )
+							if( !spline.loop && pointIndex == 0 )
 							{
-								if( spline.loop )
-									position = ( spline[0].localPosition + spline[spline.Count - 1].localPosition ) * 0.5f;
-								else
-									position = spline[0].localPosition - ( spline[1].localPosition - spline[0].localPosition ) * 0.5f;
+								position = spline[0].position - Vector3.Distance( spline[1].position, spline[0].position ) * spline.GetTangent( 0f ).normalized;
+								followingControlPointPosition = position - ( position - spline[0].position ) * 0.5f;
+							}
+							else if( !spline.loop && pointIndex == spline.Count )
+							{
+								position = spline[pointIndex - 1].position + Vector3.Distance( spline[pointIndex - 1].position, spline[pointIndex - 2].position ) * spline.GetTangent( 1f ).normalized;
+								followingControlPointPosition = position + ( position - spline[pointIndex - 1].position ) * 0.5f;
 							}
 							else
 							{
-								if( spline.loop )
-									position = ( spline[0].localPosition + spline[spline.Count - 1].localPosition ) * 0.5f;
-								else
-									position = spline[pointIndex - 1].localPosition + ( spline[pointIndex - 1].localPosition - spline[pointIndex - 2].localPosition ) * 0.5f;
+								// Insert point in the middle without affecting the spline's shape
+								// Credit: https://stackoverflow.com/a/2614028/2373034
+								BezierPoint point1 = ( pointIndex == 0 || pointIndex == spline.Count ) ? spline[spline.Count - 1] : spline[pointIndex - 1];
+								BezierPoint point2 = ( pointIndex == 0 || pointIndex == spline.Count ) ? spline[0] : spline[pointIndex];
+
+								Vector3 P0_1 = 0.5f * ( point1.position + point1.followingControlPointPosition );
+								Vector3 P1_2 = 0.5f * ( point1.followingControlPointPosition + point2.precedingControlPointPosition );
+								Vector3 P2_3 = 0.5f * ( point2.precedingControlPointPosition + point2.position );
+
+								Vector3 precedingControlPointPosition = 0.5f * ( P0_1 + P1_2 );
+								followingControlPointPosition = 0.5f * ( P1_2 + P2_3 );
+
+								position = 0.5f * ( precedingControlPointPosition + followingControlPointPosition );
+
+								// We need to change neighboring end points' handleModes if we want to truly preserve the spline's shape
+								if( preserveShape )
+								{
+									Undo.RecordObject( point1, "Insert Point" );
+									if( point1.handleMode == BezierPoint.HandleMode.Mirrored )
+										point1.handleMode = BezierPoint.HandleMode.Aligned;
+									point1.followingControlPointPosition = P0_1;
+
+									Undo.RecordObject( point2, "Insert Point" );
+									if( point2.handleMode == BezierPoint.HandleMode.Mirrored )
+										point2.handleMode = BezierPoint.HandleMode.Aligned;
+									point2.precedingControlPointPosition = P2_3;
+								}
 							}
 						}
 						else if( spline.Count == 1 )
-							position = pointIndex == 0 ? spline[0].localPosition - Vector3.forward : spline[0].localPosition + Vector3.forward;
+						{
+							position = pointIndex == 0 ? spline[0].position - Vector3.forward : spline[0].position + Vector3.forward;
+							followingControlPointPosition = position + ( spline[0].followingControlPointPosition - spline[0].position );
+						}
 						else
-							position = Vector3.zero;
+						{
+							position = spline.transform.position;
+							followingControlPointPosition = Vector3.right;
+						}
 
 						newPoint = spline.InsertNewPointAt( pointIndex );
-						newPoint.localPosition = position;
+						newPoint.position = position;
+						newPoint.followingControlPointPosition = followingControlPointPosition;
 					}
 					else
 						newPoint = Instantiate( points[j], points[j].transform.parent );

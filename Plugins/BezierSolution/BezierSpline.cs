@@ -56,19 +56,9 @@ namespace BezierSolution
 #endif
 
 		public int Count { get { return endPoints.Count; } }
+		public BezierPoint this[int index] { get { return endPoints[index]; } }
+
 		public float Length { get { return GetLengthApproximately( 0f, 1f ); } }
-
-		public BezierPoint this[int index]
-		{
-			get
-			{
-				if( index < Count )
-					return endPoints[index];
-
-				Debug.LogError( "Bezier index " + index + " is out of range: " + Count );
-				return null;
-			}
-		}
 
 		private void Awake()
 		{
@@ -157,7 +147,7 @@ namespace BezierSolution
 			point.transform.SetParent( parent, false );
 			point.transform.SetSiblingIndex( siblingIndex );
 
-			if( endPoints.Count == prevCount ) // If spline is not automatically Refresh()'ed
+			if( endPoints.Count == prevCount ) // If spline isn't automatically Refresh()'ed
 				endPoints.Insert( index, point );
 
 			return point;
@@ -564,9 +554,7 @@ namespace BezierSolution
 				rhs = new Vector3[n];
 
 			for( int i = 1; i < n - 1; i++ )
-			{
 				rhs[i] = 4 * endPoints[i].position + 2 * endPoints[i + 1].position;
-			}
 
 			rhs[0] = endPoints[0].position + 2 * endPoints[1].position;
 
@@ -579,7 +567,22 @@ namespace BezierSolution
 			}
 
 			// Get first control points
-			Vector3[] controlPoints = GetFirstControlPoints( rhs );
+			int rhsLength = rhs.Length;
+			Vector3[] controlPoints = new Vector3[rhsLength]; // Solution vector
+			float[] tmp = new float[rhsLength]; // Temp workspace
+
+			float b = 2f;
+			controlPoints[0] = rhs[0] / b;
+			for( int i = 1; i < rhsLength; i++ ) // Decomposition and forward substitution
+			{
+				float val = 1f / b;
+				tmp[i] = val;
+				b = ( i < rhsLength - 1 ? 4f : 3.5f ) - val;
+				controlPoints[i] = ( rhs[i] - controlPoints[i - 1] ) / b;
+			}
+
+			for( int i = 1; i < rhsLength; i++ )
+				controlPoints[rhsLength - i - 1] -= tmp[rhsLength - i] * controlPoints[rhsLength - i]; // Backsubstitution
 
 			for( int i = 0; i < n; i++ )
 			{
@@ -587,9 +590,7 @@ namespace BezierSolution
 				endPoints[i].followingControlPointPosition = controlPoints[i];
 
 				if( loop )
-				{
 					endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - controlPoints[i + 1];
-				}
 				else
 				{
 					// Second control point
@@ -609,32 +610,6 @@ namespace BezierSolution
 			}
 		}
 
-		private static Vector3[] GetFirstControlPoints( Vector3[] rhs )
-		{
-			// Credit: http://www.codeproject.com/Articles/31859/Draw-a-Smooth-Curve-through-a-Set-of-2D-Points-wit
-
-			int n = rhs.Length;
-			Vector3[] x = new Vector3[n]; // Solution vector.
-			float[] tmp = new float[n]; // Temp workspace.
-
-			float b = 2f;
-			x[0] = rhs[0] / b;
-			for( int i = 1; i < n; i++ ) // Decomposition and forward substitution.
-			{
-				float val = 1f / b;
-				tmp[i] = val;
-				b = ( i < n - 1 ? 4f : 3.5f ) - val;
-				x[i] = ( rhs[i] - x[i - 1] ) / b;
-			}
-
-			for( int i = 1; i < n; i++ )
-			{
-				x[n - i - 1] -= tmp[n - i] * x[n - i]; // Backsubstitution.
-			}
-
-			return x;
-		}
-
 		public void AutoConstructSpline2()
 		{
 			// Credit: http://stackoverflow.com/questions/3526940/how-to-create-a-cubic-bezier-curve-when-given-n-points-in-3d
@@ -651,9 +626,7 @@ namespace BezierSolution
 						pMinus1 = endPoints[0].position;
 				}
 				else
-				{
 					pMinus1 = endPoints[i - 1].position;
-				}
 
 				if( loop )
 				{
@@ -688,11 +661,6 @@ namespace BezierSolution
 					endPoints[0].precedingControlPointPosition = p1 - ( p2 - endPoints[i].position ) / 6f;
 			}
 		}
-
-		/*public void AutoConstructSpline3()
-		{
-			// Todo? http://www.math.ucla.edu/~baker/149.1.02w/handouts/dd_splines.pdf
-		}*/
 
 		private float AccuracyToStepSize( float accuracy )
 		{

@@ -25,6 +25,25 @@ namespace BezierSolution.Extras
 		private const string PRECEDING_CONTROL_POINT_LABEL = "  <--";
 		private const string FOLLOWING_CONTROL_POINT_LABEL = "  -->";
 
+		private const string SHOW_CONTROL_POINTS_PREF = "BezierSolution_ShowControlPoints";
+
+		private static bool? m_showControlPoints = null;
+		public static bool ShowControlPoints
+		{
+			get
+			{
+				if( m_showControlPoints == null )
+					m_showControlPoints = EditorPrefs.GetBool( SHOW_CONTROL_POINTS_PREF, true );
+
+				return m_showControlPoints.Value;
+			}
+			set
+			{
+				m_showControlPoints = value;
+				EditorPrefs.SetBool( SHOW_CONTROL_POINTS_PREF, value );
+			}
+		}
+
 		[MenuItem( "GameObject/Bezier Spline", priority = 35 )]
 		private static void NewSpline( MenuCommand command )
 		{
@@ -205,6 +224,8 @@ namespace BezierSolution.Extras
 
 			if( drawGizmos )
 			{
+				EditorGUI.indentLevel++;
+
 				hasMultipleDifferentValues = false;
 				Color gizmoColor = splines[0].gizmoColor;
 				for( int i = 1; i < splines.Length; i++ )
@@ -218,7 +239,7 @@ namespace BezierSolution.Extras
 
 				EditorGUI.showMixedValue = hasMultipleDifferentValues;
 				EditorGUI.BeginChangeCheck();
-				gizmoColor = EditorGUILayout.ColorField( "    Gizmo Color", gizmoColor );
+				gizmoColor = EditorGUILayout.ColorField( "Gizmo Color", gizmoColor );
 				if( EditorGUI.EndChangeCheck() )
 				{
 					for( int i = 0; i < splines.Length; i++ )
@@ -243,7 +264,7 @@ namespace BezierSolution.Extras
 
 				EditorGUI.showMixedValue = hasMultipleDifferentValues;
 				EditorGUI.BeginChangeCheck();
-				gizmoSmoothness = EditorGUILayout.IntSlider( "    Gizmo Smoothness", gizmoSmoothness, 1, 30 );
+				gizmoSmoothness = EditorGUILayout.IntSlider( "Gizmo Smoothness", gizmoSmoothness, 1, 30 );
 				if( EditorGUI.EndChangeCheck() )
 				{
 					for( int i = 0; i < splines.Length; i++ )
@@ -254,9 +275,19 @@ namespace BezierSolution.Extras
 
 					SceneView.RepaintAll();
 				}
+
+				EditorGUI.indentLevel--;
 			}
 
 			EditorGUI.showMixedValue = false;
+
+			EditorGUI.BeginChangeCheck();
+			bool showControlPoints = EditorGUILayout.Toggle( "Show Control Points", ShowControlPoints );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				ShowControlPoints = showControlPoints;
+				SceneView.RepaintAll();
+			}
 
 			EditorGUILayout.Space();
 
@@ -341,22 +372,29 @@ namespace BezierSolution.Extras
 
 			Handles.color = c;
 
-			Handles.DrawLine( point.position, point.precedingControlPointPosition );
-			Handles.DrawLine( point.position, point.followingControlPointPosition );
+			if( ShowControlPoints )
+			{
+				Handles.DrawLine( point.position, point.precedingControlPointPosition );
+				Handles.DrawLine( point.position, point.followingControlPointPosition );
 
-			if( isSelected )
-				Handles.color = SELECTED_END_POINT_CONNECTED_POINTS_COLOR;
-			else
-				Handles.color = NORMAL_END_POINT_COLOR;
+				if( isSelected )
+					Handles.color = SELECTED_END_POINT_CONNECTED_POINTS_COLOR;
+				else
+					Handles.color = NORMAL_END_POINT_COLOR;
 
-			Handles.RectangleHandleCap( 0, point.precedingControlPointPosition, SceneView.lastActiveSceneView.rotation, HandleUtility.GetHandleSize( point.precedingControlPointPosition ) * END_POINT_CONTROL_POINTS_SIZE, EventType.Repaint );
-			Handles.RectangleHandleCap( 0, point.followingControlPointPosition, SceneView.lastActiveSceneView.rotation, HandleUtility.GetHandleSize( point.followingControlPointPosition ) * END_POINT_CONTROL_POINTS_SIZE, EventType.Repaint );
+				Handles.RectangleHandleCap( 0, point.precedingControlPointPosition, SceneView.lastActiveSceneView.rotation, HandleUtility.GetHandleSize( point.precedingControlPointPosition ) * END_POINT_CONTROL_POINTS_SIZE, EventType.Repaint );
+				Handles.RectangleHandleCap( 0, point.followingControlPointPosition, SceneView.lastActiveSceneView.rotation, HandleUtility.GetHandleSize( point.followingControlPointPosition ) * END_POINT_CONTROL_POINTS_SIZE, EventType.Repaint );
 
-			Handles.color = c;
+				Handles.color = c;
+			}
 
 			Handles.Label( point.position, "Point" + pointIndex );
-			Handles.Label( point.precedingControlPointPosition, PRECEDING_CONTROL_POINT_LABEL );
-			Handles.Label( point.followingControlPointPosition, FOLLOWING_CONTROL_POINT_LABEL );
+
+			if( ShowControlPoints )
+			{
+				Handles.Label( point.precedingControlPointPosition, PRECEDING_CONTROL_POINT_LABEL );
+				Handles.Label( point.followingControlPointPosition, FOLLOWING_CONTROL_POINT_LABEL );
+			}
 		}
 
 		private static void ShowAutoConstructButton( BezierSpline[] splines, string label, SplineAutoConstructMode mode )
