@@ -63,6 +63,8 @@ namespace BezierSolution.Extras
 				hasInitialData = false;
 				RestoreInitialData();
 			}
+
+			simulateInEditor = false;
 		}
 
 		protected virtual void SaveInitialData()
@@ -85,17 +87,28 @@ namespace BezierSolution.Extras
 		{
 			for( int i = 0; i < walkers.Length; i++ )
 			{
-				( (Component) walkers[i] ).transform.position = initialPositions[i];
-				( (Component) walkers[i] ).transform.rotation = initialRotations[i];
-				( (BezierWalker) walkers[i] ).NormalizedT = initialNormalizedTs[i];
+				if( walkers[i] )
+				{
+					( (Component) walkers[i] ).transform.position = initialPositions[i];
+					( (Component) walkers[i] ).transform.rotation = initialRotations[i];
+					( (BezierWalker) walkers[i] ).NormalizedT = initialNormalizedTs[i];
+				}
 			}
 		}
 
 		private void SimulateInEditor()
 		{
-			double time = EditorApplication.timeSinceStartup;
-			Simulate( (float) ( time - lastUpdateTime ) );
-			lastUpdateTime = time;
+			if( EditorApplication.isPlayingOrWillChangePlaymode && !EditorApplication.isPlaying )
+			{
+				// Stop the simulation if we are about to enter Play mode
+				StopSimulateInEditor();
+			}
+			else
+			{
+				double time = EditorApplication.timeSinceStartup;
+				Simulate( (float) ( time - lastUpdateTime ) );
+				lastUpdateTime = time;
+			}
 		}
 
 		protected virtual void Simulate( float deltaTime )

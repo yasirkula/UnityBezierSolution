@@ -1,25 +1,106 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
+#if UNITY_2017_3_OR_NEWER
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo( "BezierSolution.Editor" )]
+#else
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo( "Assembly-CSharp-Editor" )]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo( "Assembly-CSharp-Editor-firstpass" )]
+#endif
 namespace BezierSolution
 {
 #if UNITY_EDITOR
-	public enum SplineAutoConstructMode { None = 0, Linear = 1, Smooth1 = 2, Smooth2 = 3 };
+	internal enum SplineAutoConstructMode { None = 0, Linear = 1, Smooth1 = 2, Smooth2 = 3 };
 #endif
 
 	[ExecuteInEditMode]
-	public class BezierSpline : MonoBehaviour
+	public class BezierSpline : MonoBehaviour, IEnumerable<BezierPoint>
 	{
 		public struct PointIndexTuple
 		{
+			public readonly BezierPoint point1, point2;
 			public readonly int index1, index2;
 			public readonly float t;
 
-			public PointIndexTuple( int index1, int index2, float t )
+			public PointIndexTuple( BezierSpline spline, int index1, int index2, float t )
 			{
+				this.point1 = spline[index1];
+				this.point2 = spline[index2];
 				this.index1 = index1;
 				this.index2 = index2;
 				this.t = t;
+			}
+
+			public Vector3 GetPoint()
+			{
+				return GetPoint( t );
+			}
+
+			public Vector3 GetPoint( float localT )
+			{
+				float oneMinusLocalT = 1f - localT;
+
+				return oneMinusLocalT * oneMinusLocalT * oneMinusLocalT * point1.position +
+					   3f * oneMinusLocalT * oneMinusLocalT * localT * point1.followingControlPointPosition +
+					   3f * oneMinusLocalT * localT * localT * point2.precedingControlPointPosition +
+					   localT * localT * localT * point2.position;
+			}
+
+			public Vector3 GetTangent()
+			{
+				return GetTangent( t );
+			}
+
+			public Vector3 GetTangent( float localT )
+			{
+				float oneMinusLocalT = 1f - localT;
+
+				return 3f * oneMinusLocalT * oneMinusLocalT * ( point1.followingControlPointPosition - point1.position ) +
+					   6f * oneMinusLocalT * localT * ( point2.precedingControlPointPosition - point1.followingControlPointPosition ) +
+					   3f * localT * localT * ( point2.position - point2.precedingControlPointPosition );
+			}
+
+			public Vector3 GetNormal()
+			{
+				return GetNormal( t );
+			}
+
+			public Vector3 GetNormal( float localT )
+			{
+				Vector3 startNormal = point1.normal;
+				Vector3 endNormal = point2.normal;
+
+				Vector3 normal = Vector3.LerpUnclamped( startNormal, endNormal, localT );
+				if( normal.y == 0f && normal.x == 0f && normal.z == 0f )
+				{
+					// Don't return Vector3.zero as normal
+					normal = Vector3.LerpUnclamped( startNormal, endNormal, localT > 0.01f ? ( localT - 0.01f ) : ( localT + 0.01f ) );
+					if( normal.y == 0f && normal.x == 0f && normal.z == 0f )
+						normal = Vector3.up;
+				}
+
+				return normal;
+			}
+
+			public BezierPoint.ExtraData GetExtraData()
+			{
+				return defaultExtraDataLerpFunction( point1.extraData, point2.extraData, t );
+			}
+
+			public BezierPoint.ExtraData GetExtraData( float localT )
+			{
+				return defaultExtraDataLerpFunction( point1.extraData, point2.extraData, localT );
+			}
+
+			public BezierPoint.ExtraData GetExtraData( ExtraDataLerpFunction lerpFunction )
+			{
+				return lerpFunction( point1.extraData, point2.extraData, t );
+			}
+
+			public BezierPoint.ExtraData GetExtraData( float localT, ExtraDataLerpFunction lerpFunction )
+			{
+				return lerpFunction( point1.extraData, point2.extraData, localT );
 			}
 		}
 
@@ -28,7 +109,7 @@ namespace BezierSolution
 		private static readonly ExtraDataLerpFunction defaultExtraDataLerpFunction = BezierPoint.ExtraData.LerpUnclamped;
 		private static Material gizmoMaterial;
 
-		private List<BezierPoint> endPoints = new List<BezierPoint>();
+		private List<BezierPoint> endPoints = new List<BezierPoint>(); // This is not readonly because otherwise BezierWalkers' "Simulate In Editor" functionality may break after recompilation
 
 		public bool loop = false;
 		public bool drawGizmos = false;
@@ -47,12 +128,22 @@ namespace BezierSolution
 		}
 
 #if UNITY_EDITOR
+		internal BezierPoint[] Internal_Points { get { return endPoints.ToArray(); } }
+
 		[System.NonSerialized]
-		public bool Internal_IsDirty;
+		internal bool Internal_IsDirty;
 
 		[SerializeField]
 		[HideInInspector]
-		public SplineAutoConstructMode Internal_AutoConstructMode = SplineAutoConstructMode.None;
+		internal SplineAutoConstructMode Internal_AutoConstructMode = SplineAutoConstructMode.None;
+
+		[SerializeField]
+		[HideInInspector]
+		internal bool Internal_AutoCalculateNormals = false;
+
+		[SerializeField]
+		[HideInInspector]
+		internal bool Internal_FlipAutoCalculatedNormals = false;
 #endif
 
 		public int Count { get { return endPoints.Count; } }
@@ -76,7 +167,7 @@ namespace BezierSolution
 			Internal_CheckDirty();
 		}
 
-		public void Internal_CheckDirty()
+		internal void Internal_CheckDirty()
 		{
 			if( Internal_IsDirty && endPoints.Count >= 2 )
 			{
@@ -87,7 +178,25 @@ namespace BezierSolution
 					case SplineAutoConstructMode.Smooth2: AutoConstructSpline2(); break;
 				}
 
+				if( Internal_AutoCalculateNormals )
+					AutoCalculateNormals( Internal_FlipAutoCalculatedNormals );
+
 				Internal_IsDirty = false;
+			}
+		}
+
+		internal void Internal_SetDirtyImmediatelyWithUndo( string undo )
+		{
+			if( Internal_AutoCalculateNormals || Internal_AutoConstructMode != SplineAutoConstructMode.None )
+			{
+				for( int i = 0; i < endPoints.Count; i++ )
+				{
+					UnityEditor.Undo.RecordObject( endPoints[i], undo );
+					UnityEditor.Undo.RecordObject( endPoints[i].transform, undo );
+				}
+
+				Internal_IsDirty = true;
+				Internal_CheckDirty();
 			}
 		}
 #endif
@@ -224,12 +333,12 @@ namespace BezierSolution
 #endif
 		}
 
-		public void MovePoint( int previousIndex, int newIndex )
+		public void ChangePointIndex( int previousIndex, int newIndex )
 		{
-			Internal_MovePoint( previousIndex, newIndex, null );
+			Internal_ChangePointIndex( previousIndex, newIndex, null );
 		}
 
-		public void Internal_MovePoint( int previousIndex, int newIndex, string undo )
+		internal void Internal_ChangePointIndex( int previousIndex, int newIndex, string undo )
 		{
 			if( previousIndex == newIndex )
 				return;
@@ -378,6 +487,48 @@ namespace BezierSolution
 				   3f * localT * localT * ( endPoint.position - endPoint.precedingControlPointPosition );
 		}
 
+		public Vector3 GetNormal( float normalizedT )
+		{
+			if( !loop )
+			{
+				if( normalizedT <= 0f )
+					return endPoints[0].normal;
+				else if( normalizedT >= 1f )
+					return endPoints[endPoints.Count - 1].normal;
+			}
+			else
+			{
+				if( normalizedT < 0f )
+					normalizedT += 1f;
+				else if( normalizedT >= 1f )
+					normalizedT -= 1f;
+			}
+
+			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+
+			int startIndex = (int) t;
+			int endIndex = startIndex + 1;
+
+			if( endIndex == endPoints.Count )
+				endIndex = 0;
+
+			Vector3 startNormal = endPoints[startIndex].normal;
+			Vector3 endNormal = endPoints[endIndex].normal;
+
+			float localT = t - startIndex;
+
+			Vector3 normal = Vector3.LerpUnclamped( startNormal, endNormal, localT );
+			if( normal.y == 0f && normal.x == 0f && normal.z == 0f )
+			{
+				// Don't return Vector3.zero as normal
+				normal = Vector3.LerpUnclamped( startNormal, endNormal, localT > 0.01f ? ( localT - 0.01f ) : ( localT + 0.01f ) );
+				if( normal.y == 0f && normal.x == 0f && normal.z == 0f )
+					normal = Vector3.up;
+			}
+
+			return normal;
+		}
+
 		public BezierPoint.ExtraData GetExtraData( float normalizedT )
 		{
 			return GetExtraData( normalizedT, defaultExtraDataLerpFunction );
@@ -447,9 +598,9 @@ namespace BezierSolution
 			if( !loop )
 			{
 				if( normalizedT <= 0f )
-					return new PointIndexTuple( 0, 1, 0f );
+					return new PointIndexTuple( this, 0, 1, 0f );
 				else if( normalizedT >= 1f )
-					return new PointIndexTuple( endPoints.Count - 1, endPoints.Count - 1, 1f );
+					return new PointIndexTuple( this, endPoints.Count - 1, endPoints.Count - 1, 1f );
 			}
 			else
 			{
@@ -467,7 +618,7 @@ namespace BezierSolution
 			if( endIndex == endPoints.Count )
 				endIndex = 0;
 
-			return new PointIndexTuple( startIndex, endIndex, t - startIndex );
+			return new PointIndexTuple( this, startIndex, endIndex, t - startIndex );
 		}
 
 		public Vector3 FindNearestPointTo( Vector3 worldPos, float accuracy = 100f )
@@ -499,11 +650,10 @@ namespace BezierSolution
 			return result;
 		}
 
+		// Credit: https://gamedev.stackexchange.com/a/27138
 		public Vector3 MoveAlongSpline( ref float normalizedT, float deltaMovement, int accuracy = 3 )
 		{
-			// Credit: https://gamedev.stackexchange.com/a/27138
-
-			float constant = deltaMovement / ( ( loop ? endPoints.Count : endPoints.Count - 1 ) * accuracy );
+			float constant = deltaMovement / ( ( loop ? endPoints.Count : ( endPoints.Count - 1 ) ) * accuracy );
 			for( int i = 0; i < accuracy; i++ )
 				normalizedT += constant / GetTangent( normalizedT ).magnitude;
 
@@ -531,10 +681,9 @@ namespace BezierSolution
 			}
 		}
 
+		// Credit: http://www.codeproject.com/Articles/31859/Draw-a-Smooth-Curve-through-a-Set-of-2D-Points-wit
 		public void AutoConstructSpline()
 		{
-			// Credit: http://www.codeproject.com/Articles/31859/Draw-a-Smooth-Curve-through-a-Set-of-2D-Points-wit
-
 			for( int i = 0; i < endPoints.Count; i++ )
 				endPoints[i].handleMode = BezierPoint.HandleMode.Mirrored;
 
@@ -610,9 +759,15 @@ namespace BezierSolution
 			}
 		}
 
+		// Credit: http://stackoverflow.com/questions/3526940/how-to-create-a-cubic-bezier-curve-when-given-n-points-in-3d
 		public void AutoConstructSpline2()
 		{
-			// Credit: http://stackoverflow.com/questions/3526940/how-to-create-a-cubic-bezier-curve-when-given-n-points-in-3d
+			// This method doesn't work well with 2 end poins
+			if( endPoints.Count == 2 )
+			{
+				AutoConstructSpline();
+				return;
+			}
 
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
@@ -662,6 +817,53 @@ namespace BezierSolution
 			}
 		}
 
+		// Alternative approach1: https://stackoverflow.com/a/25458216/2373034
+		// Alternative approach2: https://stackoverflow.com/a/14241741/2373034
+		public void AutoCalculateNormals( bool flipNormals )
+		{
+			const float DELTA_T = 0.025f;
+			const float ONE_MINUS_DELTA_T = 1f - DELTA_T;
+
+			for( int i = 0; i < endPoints.Count; i++ )
+			{
+				if( i < endPoints.Count - 1 )
+					endPoints[i].normal = CalculateFrenetNormal( i, i + 1, 0f, DELTA_T, endPoints[i].autoCalculatedNormalAngleOffset );
+				else if( loop )
+					endPoints[i].normal = CalculateFrenetNormal( i, 0, 0f, DELTA_T, endPoints[i].autoCalculatedNormalAngleOffset );
+				else
+					endPoints[i].normal = CalculateFrenetNormal( i - 1, i, ONE_MINUS_DELTA_T, 1f, endPoints[i].autoCalculatedNormalAngleOffset );
+
+				if( flipNormals )
+					endPoints[i].normal = -endPoints[i].normal;
+			}
+
+			if( loop )
+			{
+				Vector3 point0Normal2 = CalculateFrenetNormal( endPoints.Count - 1, 0, ONE_MINUS_DELTA_T, 1f, endPoints[0].autoCalculatedNormalAngleOffset );
+				if( flipNormals )
+					point0Normal2 = -point0Normal2;
+
+				if( point0Normal2 != -endPoints[0].normal )
+					endPoints[0].normal = ( endPoints[0].normal + point0Normal2 ).normalized;
+			}
+		}
+
+		private Vector3 CalculateFrenetNormal( int pointIndex1, int pointIndex2, float localT1, float localT2, float rotateAngle )
+		{
+			PointIndexTuple tuple = new PointIndexTuple( this, pointIndex1, pointIndex2, 0f );
+			Vector3 tangent1 = tuple.GetTangent( localT1 ).normalized;
+			Vector3 tangent2 = tuple.GetTangent( localT2 ).normalized;
+			Vector3 cross = Vector3.Cross( tangent2, tangent1 ).normalized;
+			if( Mathf.Approximately( cross.sqrMagnitude, 0f ) ) // This is not a curved spline but rather a straight line
+				cross = Vector3.Cross( tangent2, ( tangent2.x != 0f || tangent2.z != 0f ) ? Vector3.up : Vector3.forward );
+
+			Vector3 normal = Vector3.Cross( cross, tangent1 ).normalized;
+			if( rotateAngle != 0f )
+				normal = Quaternion.AngleAxis( rotateAngle, tangent1 ) * normal;
+
+			return normal;
+		}
+
 		private float AccuracyToStepSize( float accuracy )
 		{
 			if( accuracy <= 0f )
@@ -706,6 +908,16 @@ namespace BezierSolution
 			GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );
 
 			GL.End();
+		}
+
+		IEnumerator<BezierPoint> IEnumerable<BezierPoint>.GetEnumerator()
+		{
+			return endPoints.GetEnumerator();
+		}
+
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			return endPoints.GetEnumerator();
 		}
 
 #if UNITY_EDITOR

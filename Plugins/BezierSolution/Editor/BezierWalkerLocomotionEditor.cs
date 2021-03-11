@@ -33,11 +33,14 @@ namespace BezierSolution.Extras
 			int index = tailSaveDataStartIndex;
 			for( int i = 0; i < walkers.Length; i++ )
 			{
-				List<Transform> tail = ( (BezierWalkerLocomotion) walkers[i] ).Tail;
-				for( int j = 0; j < tail.Count; j++, index++ )
+				if( walkers[i] )
 				{
-					tail[j].position = initialPositions[index];
-					tail[j].rotation = initialRotations[index];
+					List<Transform> tail = ( (BezierWalkerLocomotion) walkers[i] ).Tail;
+					for( int j = 0; j < tail.Count; j++, index++ )
+					{
+						tail[j].position = initialPositions[index];
+						tail[j].rotation = initialRotations[index];
+					}
 				}
 			}
 		}

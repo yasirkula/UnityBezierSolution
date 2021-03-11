@@ -68,7 +68,10 @@ namespace BezierSolution
 					tailObject.position = Vector3.Lerp( tailObject.position, spline.MoveAlongSpline( ref t, -tailObjectDistances[i] ), movementLerpModifier * deltaTime );
 
 					if( lookAt == LookAtMode.Forward )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( spline.GetTangent( t ) ), rotationLerpModifier * deltaTime );
+					{
+						BezierSpline.PointIndexTuple tuple = spline.GetNearestPointIndicesTo( t );
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( tuple.GetTangent(), tuple.GetNormal() ), rotationLerpModifier * deltaTime );
+					}
 					else if( lookAt == LookAtMode.SplineExtraData )
 						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
 				}
@@ -77,7 +80,10 @@ namespace BezierSolution
 					tailObject.position = Vector3.Lerp( tailObject.position, spline.MoveAlongSpline( ref t, tailObjectDistances[i] ), movementLerpModifier * deltaTime );
 
 					if( lookAt == LookAtMode.Forward )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( -spline.GetTangent( t ) ), rotationLerpModifier * deltaTime );
+					{
+						BezierSpline.PointIndexTuple tuple = spline.GetNearestPointIndicesTo( t );
+						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( -tuple.GetTangent(), tuple.GetNormal() ), rotationLerpModifier * deltaTime );
+					}
 					else if( lookAt == LookAtMode.SplineExtraData )
 						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
 				}

@@ -307,14 +307,19 @@ namespace BezierSolution
 		}
 
 		[HideInInspector]
+		public Vector3 normal = Vector3.up;
+		[HideInInspector]
+		public float autoCalculatedNormalAngleOffset = 0f;
+
+		[HideInInspector]
 		public ExtraData extraData;
 #pragma warning restore 0649
 
 #if UNITY_EDITOR
 		[System.NonSerialized]
-		public BezierSpline Internal_Spline;
+		internal BezierSpline Internal_Spline;
 		[System.NonSerialized]
-		public int Internal_Index;
+		internal int Internal_Index;
 #endif
 
 		private void Awake()

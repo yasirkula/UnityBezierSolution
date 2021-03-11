@@ -1,5 +1,7 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEditor;
+using Object = UnityEngine.Object;
 
 namespace BezierSolution.Extras
 {
@@ -13,19 +15,27 @@ namespace BezierSolution.Extras
 		private static readonly Color NORMAL_END_POINT_COLOR = Color.white;
 		private static readonly Color SELECTED_END_POINT_COLOR = Color.yellow;
 		private static readonly Color SELECTED_END_POINT_CONNECTED_POINTS_COLOR = Color.green;
+		private static readonly Color END_POINT_NORMALS_COLOR = Color.blue;
 
 		private static readonly Color AUTO_CONSTRUCT_SPLINE_BUTTON_COLOR = new Color( 0.65f, 1f, 0.65f );
 		private static readonly GUIContent AUTO_CONSTRUCT_ALWAYS_TEXT = new GUIContent( "Always", "In Editor, apply this method automatically as spline's points change" );
+
+		public static readonly GUILayoutOption GL_WIDTH_45 = GUILayout.Width( 45f );
+		public static readonly GUILayoutOption GL_WIDTH_60 = GUILayout.Width( 60f );
+		public static readonly GUILayoutOption GL_WIDTH_100 = GUILayout.Width( 100f );
+		public static readonly GUILayoutOption GL_WIDTH_155 = GUILayout.Width( 155f );
 
 		private const float SPLINE_THICKNESS = 8f;
 		private const float END_POINT_SIZE = 0.075f;
 		private const float END_POINT_SIZE_SELECTED = 0.075f * 1.5f;
 		private const float END_POINT_CONTROL_POINTS_SIZE = 0.05f;
+		private const float END_POINT_NORMALS_SIZE = 0.35f;
 
 		private const string PRECEDING_CONTROL_POINT_LABEL = "  <--";
 		private const string FOLLOWING_CONTROL_POINT_LABEL = "  -->";
 
 		private const string SHOW_CONTROL_POINTS_PREF = "BezierSolution_ShowControlPoints";
+		private const string SHOW_NORMALS_PREF = "BezierSolution_ShowNormals";
 
 		private static bool? m_showControlPoints = null;
 		public static bool ShowControlPoints
@@ -41,6 +51,23 @@ namespace BezierSolution.Extras
 			{
 				m_showControlPoints = value;
 				EditorPrefs.SetBool( SHOW_CONTROL_POINTS_PREF, value );
+			}
+		}
+
+		private static bool? m_showNormals = null;
+		public static bool ShowNormals
+		{
+			get
+			{
+				if( m_showNormals == null )
+					m_showNormals = EditorPrefs.GetBool( SHOW_NORMALS_PREF, true );
+
+				return m_showNormals.Value;
+			}
+			set
+			{
+				m_showNormals = value;
+				EditorPrefs.SetBool( SHOW_NORMALS_PREF, value );
 			}
 		}
 
@@ -156,7 +183,7 @@ namespace BezierSolution.Extras
 								// either the spline or a point of it selected
 								if( !isSplineSelected )
 								{
-									System.Array.Resize( ref selection, selection.Length + 1 );
+									Array.Resize( ref selection, selection.Length + 1 );
 									selection[selection.Length - 1] = spline[0].gameObject;
 								}
 							}
@@ -172,45 +199,25 @@ namespace BezierSolution.Extras
 
 			Color c = GUI.color;
 
-			bool hasMultipleDifferentValues = false;
-			bool loop = splines[0].loop;
-			for( int i = 1; i < splines.Length; i++ )
-			{
-				if( splines[i].loop != loop )
-				{
-					hasMultipleDifferentValues = true;
-					break;
-				}
-			}
-
-			EditorGUI.showMixedValue = hasMultipleDifferentValues;
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.loop == s2.loop );
 			EditorGUI.BeginChangeCheck();
-			loop = EditorGUILayout.Toggle( "Loop", loop );
+			bool loop = EditorGUILayout.Toggle( "Loop", splines[0].loop );
 			if( EditorGUI.EndChangeCheck() )
 			{
 				for( int i = 0; i < splines.Length; i++ )
 				{
-					Undo.RecordObject( splines[i], "Toggle Loop" );
-					splines[i].loop = loop;
+					BezierSpline spline = splines[i];
+					Undo.RecordObject( spline, "Toggle Loop" );
+					spline.loop = loop;
+					spline.Internal_SetDirtyImmediatelyWithUndo( "Toggle Loop" );
 				}
 
 				SceneView.RepaintAll();
 			}
 
-			hasMultipleDifferentValues = false;
-			bool drawGizmos = splines[0].drawGizmos;
-			for( int i = 1; i < splines.Length; i++ )
-			{
-				if( splines[i].drawGizmos != drawGizmos )
-				{
-					hasMultipleDifferentValues = true;
-					break;
-				}
-			}
-
-			EditorGUI.showMixedValue = hasMultipleDifferentValues;
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.drawGizmos == s2.drawGizmos );
 			EditorGUI.BeginChangeCheck();
-			drawGizmos = EditorGUILayout.Toggle( "Draw Runtime Gizmos", drawGizmos );
+			bool drawGizmos = EditorGUILayout.Toggle( "Draw Runtime Gizmos", splines[0].drawGizmos );
 			if( EditorGUI.EndChangeCheck() )
 			{
 				for( int i = 0; i < splines.Length; i++ )
@@ -226,20 +233,9 @@ namespace BezierSolution.Extras
 			{
 				EditorGUI.indentLevel++;
 
-				hasMultipleDifferentValues = false;
-				Color gizmoColor = splines[0].gizmoColor;
-				for( int i = 1; i < splines.Length; i++ )
-				{
-					if( splines[i].gizmoColor != gizmoColor )
-					{
-						hasMultipleDifferentValues = true;
-						break;
-					}
-				}
-
-				EditorGUI.showMixedValue = hasMultipleDifferentValues;
+				EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.gizmoColor == s2.gizmoColor );
 				EditorGUI.BeginChangeCheck();
-				gizmoColor = EditorGUILayout.ColorField( "Gizmo Color", gizmoColor );
+				Color gizmoColor = EditorGUILayout.ColorField( "Gizmo Color", splines[0].gizmoColor );
 				if( EditorGUI.EndChangeCheck() )
 				{
 					for( int i = 0; i < splines.Length; i++ )
@@ -251,20 +247,9 @@ namespace BezierSolution.Extras
 					SceneView.RepaintAll();
 				}
 
-				hasMultipleDifferentValues = false;
-				int gizmoSmoothness = splines[0].gizmoSmoothness;
-				for( int i = 1; i < splines.Length; i++ )
-				{
-					if( splines[i].gizmoSmoothness != gizmoSmoothness )
-					{
-						hasMultipleDifferentValues = true;
-						break;
-					}
-				}
-
-				EditorGUI.showMixedValue = hasMultipleDifferentValues;
+				EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.gizmoSmoothness == s2.gizmoSmoothness );
 				EditorGUI.BeginChangeCheck();
-				gizmoSmoothness = EditorGUILayout.IntSlider( "Gizmo Smoothness", gizmoSmoothness, 1, 30 );
+				int gizmoSmoothness = EditorGUILayout.IntSlider( "Gizmo Smoothness", splines[0].gizmoSmoothness, 1, 30 );
 				if( EditorGUI.EndChangeCheck() )
 				{
 					for( int i = 0; i < splines.Length; i++ )
@@ -279,6 +264,21 @@ namespace BezierSolution.Extras
 				EditorGUI.indentLevel--;
 			}
 
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.Internal_FlipAutoCalculatedNormals == s2.Internal_FlipAutoCalculatedNormals );
+			EditorGUI.BeginChangeCheck();
+			bool flipAutoCalculatedNormals = EditorGUILayout.Toggle( "Flip Auto Calculated Normals", splines[0].Internal_FlipAutoCalculatedNormals );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					Undo.RecordObject( splines[i], "Change Normals Flip" );
+					splines[i].Internal_FlipAutoCalculatedNormals = flipAutoCalculatedNormals;
+					splines[i].Internal_SetDirtyImmediatelyWithUndo( "Change Normals Flip" );
+				}
+
+				SceneView.RepaintAll();
+			}
+
 			EditorGUI.showMixedValue = false;
 
 			EditorGUI.BeginChangeCheck();
@@ -289,12 +289,59 @@ namespace BezierSolution.Extras
 				SceneView.RepaintAll();
 			}
 
+			EditorGUI.BeginChangeCheck();
+			bool showNormals = EditorGUILayout.Toggle( "Show Normals", ShowNormals );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				ShowNormals = showNormals;
+				SceneView.RepaintAll();
+			}
+
 			EditorGUILayout.Space();
 
 			GUI.color = AUTO_CONSTRUCT_SPLINE_BUTTON_COLOR;
 			ShowAutoConstructButton( splines, "Construct Linear Path", SplineAutoConstructMode.Linear );
 			ShowAutoConstructButton( splines, "Auto Construct Spline", SplineAutoConstructMode.Smooth1 );
-			ShowAutoConstructButton( splines, "Auto Construct Spline (method #2)", SplineAutoConstructMode.Smooth2 );
+			ShowAutoConstructButton( splines, "Auto Construct Spline 2", SplineAutoConstructMode.Smooth2 );
+
+			GUILayout.BeginHorizontal();
+			if( GUILayout.Button( "Auto Calculate Normals" ) )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					BezierSpline spline = splines[i];
+					Undo.RecordObject( spline, "Auto Calculate Normals" );
+
+					try
+					{
+						spline.Internal_AutoCalculateNormals = true;
+						spline.Internal_SetDirtyImmediatelyWithUndo( "Auto Calculate Normals" );
+					}
+					finally
+					{
+						spline.Internal_AutoCalculateNormals = false;
+					}
+				}
+
+				SceneView.RepaintAll();
+			}
+
+			EditorGUI.BeginChangeCheck();
+			bool autoCalculateNormalsEnabled = GUILayout.Toggle( Array.Find( splines, ( s ) => s.Internal_AutoCalculateNormals ), AUTO_CONSTRUCT_ALWAYS_TEXT, GUI.skin.button, GL_WIDTH_100 );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					BezierSpline spline = splines[i];
+					Undo.RecordObject( spline, "Change Auto Calculate Normals" );
+					spline.Internal_AutoCalculateNormals = autoCalculateNormalsEnabled;
+					spline.Internal_SetDirtyImmediatelyWithUndo( "Change Auto Calculate Normals" );
+				}
+
+				SceneView.RepaintAll();
+			}
+			GUILayout.EndHorizontal();
+
 			GUI.color = c;
 		}
 
@@ -336,7 +383,7 @@ namespace BezierSolution.Extras
 
 						if( !splineIncludedInSelection )
 						{
-							System.Array.Resize( ref selection, selection.Length + 1 );
+							Array.Resize( ref selection, selection.Length + 1 );
 							selection[selection.Length - 1] = point.gameObject;
 						}
 					}
@@ -360,7 +407,7 @@ namespace BezierSolution.Extras
 								for( int j = i + 1; j < selection.Length; j++ )
 									selection[j - 1] = selection[j];
 
-								System.Array.Resize( ref selection, selection.Length - 1 );
+								Array.Resize( ref selection, selection.Length - 1 );
 								break;
 							}
 						}
@@ -395,6 +442,13 @@ namespace BezierSolution.Extras
 				Handles.Label( point.precedingControlPointPosition, PRECEDING_CONTROL_POINT_LABEL );
 				Handles.Label( point.followingControlPointPosition, FOLLOWING_CONTROL_POINT_LABEL );
 			}
+
+			if( ShowNormals )
+			{
+				Handles.color = END_POINT_NORMALS_COLOR;
+				Handles.DrawLine( point.position, point.position + point.normal * END_POINT_NORMALS_SIZE );
+				Handles.color = c;
+			}
 		}
 
 		private static void ShowAutoConstructButton( BezierSpline[] splines, string label, SplineAutoConstructMode mode )
@@ -406,53 +460,34 @@ namespace BezierSolution.Extras
 				{
 					BezierSpline spline = splines[i];
 					Undo.RecordObject( spline, label );
-					for( int j = 0; j < spline.Count; j++ )
-						Undo.RecordObject( spline[j], label );
 
-					switch( mode )
+					try
 					{
-						case SplineAutoConstructMode.Linear: spline.ConstructLinearPath(); break;
-						case SplineAutoConstructMode.Smooth1: spline.AutoConstructSpline(); break;
-						case SplineAutoConstructMode.Smooth2: spline.AutoConstructSpline2(); break;
+						spline.Internal_AutoConstructMode = mode;
+						spline.Internal_SetDirtyImmediatelyWithUndo( label );
 					}
-
-					spline.Internal_AutoConstructMode = SplineAutoConstructMode.None;
+					finally
+					{
+						spline.Internal_AutoConstructMode = SplineAutoConstructMode.None;
+					}
 				}
 
 				SceneView.RepaintAll();
 			}
 
-			bool autoConstructEnabled = false;
-			for( int i = 0; i < splines.Length; i++ )
-			{
-				if( splines[i].Internal_AutoConstructMode == mode )
-				{
-					autoConstructEnabled = true;
-					break;
-				}
-			}
-
 			EditorGUI.BeginChangeCheck();
-			autoConstructEnabled = GUILayout.Toggle( autoConstructEnabled, AUTO_CONSTRUCT_ALWAYS_TEXT, GUI.skin.button, GUILayout.Width( 100f ) );
+			bool autoConstructEnabled = GUILayout.Toggle( Array.Find( splines, ( s ) => s.Internal_AutoConstructMode == mode ), AUTO_CONSTRUCT_ALWAYS_TEXT, GUI.skin.button, GL_WIDTH_100 );
 			if( EditorGUI.EndChangeCheck() )
 			{
 				for( int i = 0; i < splines.Length; i++ )
 				{
 					BezierSpline spline = splines[i];
 					Undo.RecordObject( spline, "Change Autoconstruct Mode" );
-					for( int j = 0; j < spline.Count; j++ )
-						Undo.RecordObject( spline[j], "Change Autoconstruct Mode" );
 
 					if( autoConstructEnabled )
 					{
 						spline.Internal_AutoConstructMode = mode;
-
-						switch( mode )
-						{
-							case SplineAutoConstructMode.Linear: spline.ConstructLinearPath(); break;
-							case SplineAutoConstructMode.Smooth1: spline.AutoConstructSpline(); break;
-							case SplineAutoConstructMode.Smooth2: spline.AutoConstructSpline2(); break;
-						}
+						spline.Internal_SetDirtyImmediatelyWithUndo( "Change Autoconstruct Mode" );
 					}
 					else
 						spline.Internal_AutoConstructMode = SplineAutoConstructMode.None;
@@ -474,6 +509,20 @@ namespace BezierSolution.Extras
 								endPoint0.followingControlPointPosition,
 								endPoint1.precedingControlPointPosition,
 								SPLINE_DETAILED_COLOR, null, SPLINE_THICKNESS );
+		}
+
+		private static bool HasMultipleDifferentValues( BezierSpline[] splines, Func<BezierSpline, BezierSpline, bool> comparer )
+		{
+			if( splines.Length <= 1 )
+				return false;
+
+			for( int i = 1; i < splines.Length; i++ )
+			{
+				if( !comparer( splines[0], splines[i] ) )
+					return true;
+			}
+
+			return false;
 		}
 	}
 }

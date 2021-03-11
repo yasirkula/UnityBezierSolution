@@ -47,11 +47,12 @@ namespace BezierSolution
 
 			if( lookAt == LookAtMode.Forward )
 			{
+				BezierSpline.PointIndexTuple tuple = spline.GetNearestPointIndicesTo( m_normalizedT );
 				Quaternion targetRotation;
 				if( isGoingForward )
-					targetRotation = Quaternion.LookRotation( spline.GetTangent( m_normalizedT ) );
+					targetRotation = Quaternion.LookRotation( tuple.GetTangent(), tuple.GetNormal() );
 				else
-					targetRotation = Quaternion.LookRotation( -spline.GetTangent( m_normalizedT ) );
+					targetRotation = Quaternion.LookRotation( -tuple.GetTangent(), tuple.GetNormal() );
 
 				transform.rotation = Quaternion.Lerp( transform.rotation, targetRotation, rotationLerpModifier * deltaTime );
 			}
