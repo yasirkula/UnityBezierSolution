@@ -327,7 +327,7 @@ namespace BezierSolution.Extras
 			}
 
 			EditorGUI.BeginChangeCheck();
-			bool autoCalculateNormalsEnabled = GUILayout.Toggle( Array.Find( splines, ( s ) => s.Internal_AutoCalculateNormals ), AUTO_CONSTRUCT_ALWAYS_TEXT, GUI.skin.button, GL_WIDTH_100 );
+			bool autoCalculateNormalsEnabled = GUILayout.Toggle( Array.Find( splines, ( s ) => s.Internal_AutoCalculateNormals ), AUTO_CONSTRUCT_ALWAYS_TEXT, GUI.skin.button, EditorGUIUtility.wideMode ? GL_WIDTH_100 : GL_WIDTH_60 );
 			if( EditorGUI.EndChangeCheck() )
 			{
 				for( int i = 0; i < splines.Length; i++ )
@@ -476,7 +476,7 @@ namespace BezierSolution.Extras
 			}
 
 			EditorGUI.BeginChangeCheck();
-			bool autoConstructEnabled = GUILayout.Toggle( Array.Find( splines, ( s ) => s.Internal_AutoConstructMode == mode ), AUTO_CONSTRUCT_ALWAYS_TEXT, GUI.skin.button, GL_WIDTH_100 );
+			bool autoConstructEnabled = GUILayout.Toggle( Array.Find( splines, ( s ) => s.Internal_AutoConstructMode == mode ), AUTO_CONSTRUCT_ALWAYS_TEXT, GUI.skin.button, EditorGUIUtility.wideMode ? GL_WIDTH_100 : GL_WIDTH_60 );
 			if( EditorGUI.EndChangeCheck() )
 			{
 				for( int i = 0; i < splines.Length; i++ )
