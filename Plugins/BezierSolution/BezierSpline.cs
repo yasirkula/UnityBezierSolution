@@ -21,20 +21,31 @@ namespace BezierSolution
 		{
 			public readonly BezierPoint point1, point2;
 			public readonly int index1, index2;
-			public readonly float t;
+			public readonly float localT;
 
-			public PointIndexTuple( BezierSpline spline, int index1, int index2, float t )
+			public PointIndexTuple( BezierSpline spline, int index1, int index2, float localT )
 			{
 				this.point1 = spline[index1];
 				this.point2 = spline[index2];
 				this.index1 = index1;
 				this.index2 = index2;
-				this.t = t;
+				this.localT = localT;
+			}
+
+			public float GetNormalizedT()
+			{
+				return GetNormalizedT( localT );
+			}
+
+			public float GetNormalizedT( float localT )
+			{
+				BezierSpline spline = point1.GetComponentInParent<BezierSpline>();
+				return ( index1 + localT ) / ( spline.loop ? spline.Count : ( spline.Count - 1 ) );
 			}
 
 			public Vector3 GetPoint()
 			{
-				return GetPoint( t );
+				return GetPoint( localT );
 			}
 
 			public Vector3 GetPoint( float localT )
@@ -49,7 +60,7 @@ namespace BezierSolution
 
 			public Vector3 GetTangent()
 			{
-				return GetTangent( t );
+				return GetTangent( localT );
 			}
 
 			public Vector3 GetTangent( float localT )
@@ -63,7 +74,7 @@ namespace BezierSolution
 
 			public Vector3 GetNormal()
 			{
-				return GetNormal( t );
+				return GetNormal( localT );
 			}
 
 			public Vector3 GetNormal( float localT )
@@ -85,7 +96,7 @@ namespace BezierSolution
 
 			public BezierPoint.ExtraData GetExtraData()
 			{
-				return defaultExtraDataLerpFunction( point1.extraData, point2.extraData, t );
+				return defaultExtraDataLerpFunction( point1.extraData, point2.extraData, localT );
 			}
 
 			public BezierPoint.ExtraData GetExtraData( float localT )
@@ -95,7 +106,7 @@ namespace BezierSolution
 
 			public BezierPoint.ExtraData GetExtraData( ExtraDataLerpFunction lerpFunction )
 			{
-				return lerpFunction( point1.extraData, point2.extraData, t );
+				return lerpFunction( point1.extraData, point2.extraData, localT );
 			}
 
 			public BezierPoint.ExtraData GetExtraData( float localT, ExtraDataLerpFunction lerpFunction )
@@ -156,15 +167,20 @@ namespace BezierSolution
 			Refresh();
 		}
 
+		private void LateUpdate()
+		{
+			for( int i = 0; i < endPoints.Count; i++ )
+				endPoints[i].RefreshIfChanged();
+
+#if UNITY_EDITOR
+			Internal_CheckDirty();
+#endif
+		}
+
 #if UNITY_EDITOR
 		private void OnTransformChildrenChanged()
 		{
 			Refresh();
-		}
-
-		private void LateUpdate()
-		{
-			Internal_CheckDirty();
 		}
 
 		internal void Internal_CheckDirty()
@@ -650,6 +666,51 @@ namespace BezierSolution
 			return result;
 		}
 
+		public Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, float accuracy = 100f )
+		{
+			Vector3 pointOnLine;
+			float normalizedT;
+			return FindNearestPointToLine( lineStart, lineEnd, out pointOnLine, out normalizedT, accuracy );
+		}
+
+		public Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, out Vector3 pointOnLine, out float normalizedT, float accuracy = 100f )
+		{
+			Vector3 result = Vector3.zero;
+			pointOnLine = Vector3.zero;
+			normalizedT = -1f;
+
+			float step = AccuracyToStepSize( accuracy );
+
+			// Find closest point on line
+			// Credit: https://github.com/Unity-Technologies/UnityCsReference/blob/61f92bd79ae862c4465d35270f9d1d57befd1761/Editor/Mono/HandleUtility.cs#L115-L128
+			Vector3 lineDirection = lineEnd - lineStart;
+			float length = lineDirection.magnitude;
+			Vector3 normalizedLineDirection = lineDirection;
+			if( length > .000001f )
+				normalizedLineDirection /= length;
+
+			float minDistance = Mathf.Infinity;
+			for( float i = 0f; i < 1f; i += step )
+			{
+				Vector3 thisPoint = GetPoint( i );
+
+				// Find closest point on line
+				// Credit: https://github.com/Unity-Technologies/UnityCsReference/blob/61f92bd79ae862c4465d35270f9d1d57befd1761/Editor/Mono/HandleUtility.cs#L115-L128
+				Vector3 closestPointOnLine = lineStart + normalizedLineDirection * Mathf.Clamp( Vector3.Dot( normalizedLineDirection, thisPoint - lineStart ), 0f, length );
+
+				float thisDistance = ( closestPointOnLine - thisPoint ).sqrMagnitude;
+				if( thisDistance < minDistance )
+				{
+					minDistance = thisDistance;
+					result = thisPoint;
+					pointOnLine = closestPointOnLine;
+					normalizedT = i;
+				}
+			}
+
+			return result;
+		}
+
 		// Credit: https://gamedev.stackexchange.com/a/27138
 		public Vector3 MoveAlongSpline( ref float normalizedT, float deltaMovement, int accuracy = 3 )
 		{
@@ -662,6 +723,9 @@ namespace BezierSolution
 
 		public void ConstructLinearPath()
 		{
+			for( int i = 0; i < endPoints.Count; i++ )
+				endPoints[i].RefreshIfChanged();
+
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
 				endPoints[i].handleMode = BezierPoint.HandleMode.Free;
@@ -685,7 +749,10 @@ namespace BezierSolution
 		public void AutoConstructSpline()
 		{
 			for( int i = 0; i < endPoints.Count; i++ )
+			{
 				endPoints[i].handleMode = BezierPoint.HandleMode.Mirrored;
+				endPoints[i].RefreshIfChanged();
+			}
 
 			int n = endPoints.Count - 1;
 			if( n == 1 )
@@ -770,6 +837,9 @@ namespace BezierSolution
 			}
 
 			for( int i = 0; i < endPoints.Count; i++ )
+				endPoints[i].RefreshIfChanged();
+
+			for( int i = 0; i < endPoints.Count; i++ )
 			{
 				Vector3 pMinus1, p1, p2;
 
@@ -823,6 +893,9 @@ namespace BezierSolution
 		{
 			const float DELTA_T = 0.025f;
 			const float ONE_MINUS_DELTA_T = 1f - DELTA_T;
+
+			for( int i = 0; i < endPoints.Count; i++ )
+				endPoints[i].RefreshIfChanged();
 
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
@@ -921,7 +994,7 @@ namespace BezierSolution
 		}
 
 #if UNITY_EDITOR
-		public void Reset()
+		internal void Reset()
 		{
 			for( int i = endPoints.Count - 1; i >= 0; i-- )
 				UnityEditor.Undo.DestroyObjectImmediate( endPoints[i].gameObject );
