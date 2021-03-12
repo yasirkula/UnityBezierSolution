@@ -35,6 +35,8 @@ namespace BezierSolution.Extras
 		private const string FOLLOWING_CONTROL_POINT_LABEL = "  -->";
 
 		private const string SHOW_CONTROL_POINTS_PREF = "BezierSolution_ShowControlPoints";
+		private const string SHOW_CONTROL_POINT_DIRECTIONS_PREF = "BezierSolution_ShowControlPointDirs";
+		private const string SHOW_END_POINTS_LABELS_PREF = "BezierSolution_ShowEndPointLabels";
 		private const string SHOW_NORMALS_PREF = "BezierSolution_ShowNormals";
 
 		private static bool? m_showControlPoints = null;
@@ -51,6 +53,40 @@ namespace BezierSolution.Extras
 			{
 				m_showControlPoints = value;
 				EditorPrefs.SetBool( SHOW_CONTROL_POINTS_PREF, value );
+			}
+		}
+
+		private static bool? m_showControlPointDirections = null;
+		public static bool ShowControlPointDirections
+		{
+			get
+			{
+				if( m_showControlPointDirections == null )
+					m_showControlPointDirections = EditorPrefs.GetBool( SHOW_CONTROL_POINT_DIRECTIONS_PREF, true );
+
+				return m_showControlPointDirections.Value;
+			}
+			set
+			{
+				m_showControlPointDirections = value;
+				EditorPrefs.SetBool( SHOW_CONTROL_POINT_DIRECTIONS_PREF, value );
+			}
+		}
+
+		private static bool? m_showEndPointLabels = null;
+		public static bool ShowEndPointLabels
+		{
+			get
+			{
+				if( m_showEndPointLabels == null )
+					m_showEndPointLabels = EditorPrefs.GetBool( SHOW_END_POINTS_LABELS_PREF, true );
+
+				return m_showEndPointLabels.Value;
+			}
+			set
+			{
+				m_showEndPointLabels = value;
+				EditorPrefs.SetBool( SHOW_END_POINTS_LABELS_PREF, value );
 			}
 		}
 
@@ -274,6 +310,27 @@ namespace BezierSolution.Extras
 				SceneView.RepaintAll();
 			}
 
+			if( showControlPoints )
+			{
+				EditorGUI.indentLevel++;
+				EditorGUI.BeginChangeCheck();
+				bool showControlPointDirections = EditorGUILayout.Toggle( "Show Directions", ShowControlPointDirections );
+				if( EditorGUI.EndChangeCheck() )
+				{
+					ShowControlPointDirections = showControlPointDirections;
+					SceneView.RepaintAll();
+				}
+				EditorGUI.indentLevel--;
+			}
+
+			EditorGUI.BeginChangeCheck();
+			bool showEndPointLabels = EditorGUILayout.Toggle( "Show Point Indices", ShowEndPointLabels );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				ShowEndPointLabels = showEndPointLabels;
+				SceneView.RepaintAll();
+			}
+
 			EditorGUI.BeginChangeCheck();
 			bool showNormals = EditorGUILayout.Toggle( "Show Normals", ShowNormals );
 			if( EditorGUI.EndChangeCheck() )
@@ -437,9 +494,10 @@ namespace BezierSolution.Extras
 				Handles.color = c;
 			}
 
-			Handles.Label( point.position, "Point" + pointIndex );
+			if( ShowEndPointLabels )
+				Handles.Label( point.position, "Point" + pointIndex );
 
-			if( ShowControlPoints )
+			if( ShowControlPoints && ShowControlPointDirections )
 			{
 				Handles.Label( point.precedingControlPointPosition, PRECEDING_CONTROL_POINT_LABEL );
 				Handles.Label( point.followingControlPointPosition, FOLLOWING_CONTROL_POINT_LABEL );
