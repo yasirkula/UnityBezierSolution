@@ -28,7 +28,7 @@ There are 5 ways to install this plugin:
 
 ## CREATING & EDITING A NEW SPLINE IN EDITOR
 
-To create a new spline in the editor, follow "GameObject - Bezier Spline".
+To create a new spline in the editor, click **GameObject - Bezier Spline**.
 
 Now you can select the end points of the spline in the Scene view and translate/rotate/scale or delete/duplicate them as you wish (each end point has 2 control points, which can also be translated):
 
@@ -42,9 +42,19 @@ The user interface for the spline editor should be pretty self-explanatory. Howe
 
 **Draw Runtime Gizmos:** draws the spline during gameplay
 
+**Show Control Points:** sets whether or not the control points of the end points will be drawn in Scene window
+
+**Show Normals:** sets whether or not the end points' normals will be drawn in Scene window
+
+**Auto Calculated Normals Angle:** when *Auto Calculate Normals* button is clicked, all normals will be rotated around their Z axis by the specified amount (each end point's rotation angle can further be customized from the end point's Inspector)
+
 **Construct Linear Path:** constructs a completely linear path between the end points by using *Free* handle mode and adjusting the control points of end points (see *Convert spline to a linear path* section below). Enabling the **Always** option will apply this technique to the spline whenever its end points change (Editor-only)
 
 **Auto Construct Spline:** auto adjusts the control points of end points to form a smooth spline that goes through the end points you set. There are 2 different implementations for it, with each giving a slightly different output (see *Auto construct the spline* section below)
+
+**Auto Calculate Normals:** attempts to automatically calculate the end points' normal vectors
+
+**Insert Point At Cursor:** quickly inserts new end points to the clicked sections of the spline
 
 **Handle Mode:** control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)
 
@@ -71,15 +81,15 @@ spline.Initialize( 2 );
 
 `void SwapPointsAt( int index1, int index2 )`: swaps indices of two end points
 
-`void MovePoint( int previousIndex, int newIndex )`: changes an end point's index
+`void ChangePointIndex( int previousIndex, int newIndex )`: changes an end point's index
 
 `int IndexOf( BezierPoint point )`: returns the index of an end point
 
 - **Shape the spline**
 
-You can change the position, rotation and scale values of end points and the positions of their control points to reshape the spline.
+You can change the position, rotation, scale and normal values of the end points, as well as the positions of their control points to reshape the spline.
 
-End points have the following properties to store their transformational data: `position`, `localPosition`, `rotation`, `localRotation`, `eulerAngles`, `localEulerAngles` and `localScale`.
+End points have the following properties to store their transformational data: `position`, `localPosition`, `rotation`, `localRotation`, `eulerAngles`, `localEulerAngles`, `localScale`, `normal` and `autoCalculatedNormalAngleOffset`.
 
 Positions of control points can be tweaked using the following properties in BezierPoint: `precedingControlPointPosition`, `precedingControlPointLocalPosition`, `followingControlPointPosition` and `followingControlPointLocalPosition`. The local positions are relative to their corresponding end points.
 
@@ -100,7 +110,7 @@ spline[0].followingControlPointPosition = spline[1].position;
 
 - **Auto construct the spline**
 
-If you don't want to position all the control points manually, but rather generate a nice-looking "continuous" spline that goes through the end points you have created, you can call either **AutoConstructSpline()** or **AutoConstructSpline2()**. These methods are implementations of some algorithms found on the internet (and credited in the source code). There is a third algorithm (*AutoConstructSpline3()*) which is not implemented, but feel free to implement it yourself!
+If you don't want to position all the control points manually, but rather generate a nice-looking "continuous" spline that goes through the end points you have created, you can call either **AutoConstructSpline()** or **AutoConstructSpline2()**. These methods are implementations of some algorithms found on the internet (and credited in the source code).
 
 ![auto-construct](Images/4.png)
 
@@ -109,6 +119,12 @@ If you don't want to position all the control points manually, but rather genera
 If you want to create a linear path between the end points of the spline, you can call the **ConstructLinearPath()** function.
 
 ![auto-construct](Images/4_2.png)
+
+- **Auto calculate the normals**
+
+If you want to calculate the spline's normal vectors automatically, you can call the **AutoCalculateNormals( float normalAngle = 0f, int smoothness = 10 )** function. All resulting normal vectors will be rotated around their Z axis by "normalAngle" degrees. Additionally, each end point's normal vector will be rotated by that end point's "autoCalculatedNormalAngleOffset" degrees. "smoothness" determines how many intermediate steps are taken between each consecutive end point to calculate those end points' normal vectors. More intermediate steps is better but also slower to calculate.
+
+If auto calculated normals don't look quite right despite modifying the "normalAngle" (*Auto Calculated Normals Angle* in the Inspector) and "autoCalculatedNormalAngleOffset" (*Normal Angle* in the Inspector) variables, you can either consider inserting new end points to the sections of the spline that normals don't behave correctly, or setting the normals manually.
 
 ## UTILITY FUNCTIONS
 
@@ -121,6 +137,10 @@ A spline is essentially a mathematical formula with a \[0,1\] clamped input (usu
 - `Vector3 GetTangent( float normalizedT )`
 
 Tangent is calculated using the first derivative of the spline formula and gives the direction of the movement at a given point on the spline. Can be used to determine which direction an object on the spline should look at at a given point.
+
+- `Vector3 GetNormal( float normalizedT )`
+
+Interpolates between the end points' normal vectors. Note that this plugin doesn't store any intermediate data between end point pairs, so if two consecutive end points have almost the opposite tangents, then their interpolated normal vector may not be correct at some parts of the spline. Inserting a new end point between these two end points could resolve this issue. By default, all normal vectors have value (0,1,0).
 
 - `BezierPoint.ExtraData GetExtraData( float normalizedT )`
 
@@ -138,11 +158,15 @@ Calculates the approximate length of a segment of the spline. To calculate the l
 
 - `PointIndexTuple GetNearestPointIndicesTo( float normalizedT )`
 
-Returns the indices of the two end points that are closest to *normalizedT*. The *PointIndexTuple* struct also holds a *t* value in range \[0,1\], which can be used to interpolate between the properties of the two end points at these indices.
+Returns the indices of the two end points that are closest to *normalizedT*. The *PointIndexTuple* struct also holds a *localT* value in range \[0,1\], which can be used to interpolate between the properties of the two end points at these indices. You can also call the `GetPoint()`, `GetTangent()`, `GetNormal()` and `GetExtraData()` functions of this struct and the returned values will be calculated as if the spline consisted of only these two end points.
 
 - `Vector3 FindNearestPointTo( Vector3 worldPos, out float normalizedT, float accuracy = 100f )`
 
 Finds the nearest point on the spline to any given point in 3D space. The normalizedT parameter is optional and it returns the parameter *t* corresponding to the resulting point. To find the nearest point, the spline is divided into "accuracy" points and the nearest point is selected. Thus, the result will not be 100% accurate but will be good enough for casual use-cases.
+
+- `Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, out Vector3 pointOnLine, out float normalizedT, float accuracy = 100f )`
+
+Finds the nearest point on the spline to the given line in 3D space. The pointOnLine and normalizedT parameters are optional.
 
 - `Vector3 MoveAlongSpline( ref float normalizedT, float deltaMovement, int accuracy = 3 )`
 
@@ -150,13 +174,13 @@ Moves a point (normalizedT) on the spline deltaMovement units ahead and returns 
 
 ## OTHER COMPONENTS
 
-Framework comes with 3 additional components that may help you move objects or particles along splines. These components are located in the Utilities folder.
+Framework comes with 4 additional components that may help you move objects or particles along splines. These components are located in the Utilities folder.
 
 - **BezierWalkerWithSpeed**
 
 ![walker-with-speed](Images/5.png)
 
-Moves an object along a spline with constant speed. There are 3 travel modes: Once, Ping Pong and Loop. If *Look At* is Forward, the object will always face forwards. If it is SplineExtraData, the extra data stored in the spline's end points is used to determine the rotation. You can modify this extra data from the points' Inspector. The smoothness of the rotation can be adjusted via *Rotation Lerp Modifier*. *Normalized T* determines the starting point. Each time the object completes a lap, its *On Path Completed ()* event is invoked. To see this component in action without entering Play mode, click the *Simulate In Editor* button.
+Moves an object along a spline with constant speed. There are 3 travel modes: Once, Ping Pong and Loop. If *Look At* is Forward, the object will always face forwards (end points' normal vectors will be used as up vectors). If it is SplineExtraData, the extra data stored in the spline's end points is used to determine the rotation. You can modify this extra data from the points' Inspector. The smoothness of the rotation can be adjusted via *Rotation Lerp Modifier*. *Normalized T* determines the starting point. Each time the object completes a lap, its *On Path Completed ()* event is invoked. To see this component in action without entering Play mode, click the *Simulate In Editor* button.
 
 - **BezierWalkerWithTime**
 

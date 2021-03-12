@@ -264,21 +264,6 @@ namespace BezierSolution.Extras
 				EditorGUI.indentLevel--;
 			}
 
-			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.Internal_FlipAutoCalculatedNormals == s2.Internal_FlipAutoCalculatedNormals );
-			EditorGUI.BeginChangeCheck();
-			bool flipAutoCalculatedNormals = EditorGUILayout.Toggle( "Flip Auto Calculated Normals", splines[0].Internal_FlipAutoCalculatedNormals );
-			if( EditorGUI.EndChangeCheck() )
-			{
-				for( int i = 0; i < splines.Length; i++ )
-				{
-					Undo.RecordObject( splines[i], "Change Normals Flip" );
-					splines[i].Internal_FlipAutoCalculatedNormals = flipAutoCalculatedNormals;
-					splines[i].Internal_SetDirtyImmediatelyWithUndo( "Change Normals Flip" );
-				}
-
-				SceneView.RepaintAll();
-			}
-
 			EditorGUI.showMixedValue = false;
 
 			EditorGUI.BeginChangeCheck();
@@ -296,6 +281,23 @@ namespace BezierSolution.Extras
 				ShowNormals = showNormals;
 				SceneView.RepaintAll();
 			}
+
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.Internal_AutoCalculatedNormalsAngle == s2.Internal_AutoCalculatedNormalsAngle );
+			EditorGUI.BeginChangeCheck();
+			float autoCalculatedNormalsAngle = EditorGUILayout.FloatField( "Auto Calculated Normals Angle", splines[0].Internal_AutoCalculatedNormalsAngle );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					Undo.RecordObject( splines[i], "Change Normals Angle" );
+					splines[i].Internal_AutoCalculatedNormalsAngle = autoCalculatedNormalsAngle;
+					splines[i].Internal_SetDirtyImmediatelyWithUndo( "Change Normals Angle" );
+				}
+
+				SceneView.RepaintAll();
+			}
+
+			EditorGUI.showMixedValue = false;
 
 			EditorGUILayout.Space();
 

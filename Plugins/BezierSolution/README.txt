@@ -7,13 +7,18 @@ E-mail: yasirkula@gmail.com
 This plugin helps you create bezier splines either visually in editor or by code during gameplay. Includes some utility functions like finding the closest point on the spline or travelling the spline with constant speed.
 
 2. HOW TO
-To create a new spline in the editor, follow "GameObject - Bezier Spline". Now you can select the end points of the spline in the Scene view and translate/rotate/scale or delete/duplicate them as you wish (each end point has 2 control points, which can also be translated). Here are some of the interesting properties of a spline:
+To create a new spline in the editor, click "GameObject - Bezier Spline". Now you can select the end points of the spline in the Scene view and translate/rotate/scale or delete/duplicate them as you wish (each end point has 2 control points, which can also be translated). Here are some of the interesting properties of a spline:
 
 - Loop: connects the first end point and the last end point of the spline
 - Draw Runtime Gizmos: draws the spline during gameplay
-- Handle Mode: control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)
+- Show Control Points: sets whether or not the control points of the end points will be drawn in Scene window
+- Show Normals: sets whether or not the end points' normals will be drawn in Scene window
+- Auto Calculated Normals Angle: when Auto Calculate Normals button is clicked, all normals will be rotated around their Z axis by the specified amount (each end point's rotation angle can further be customized from the end point's Inspector)
 - Construct Linear Path: constructs a completely linear path between the end points by using Free handle mode and adjusting the control points of end points
 - Auto Construct Spline: auto adjusts the control points of end points to form a smooth spline that goes through the end points you set. There are 2 different implementations for it, with each giving a slightly different output
+- Auto Calculate Normals: attempts to automatically calculate the end points' normal vectors
+- Insert Point At Cursor: quickly inserts new end points to the clicked sections of the spline
+- Handle Mode: control points of end points are handled in one of 3 ways: Free mode allows moving control points independently, Mirrored mode places the control points opposite to each other and Aligned mode ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)
 
 Framework comes with 4 additional components that may help you move objects or particles along splines. These components are located in the Utilities folder:
 

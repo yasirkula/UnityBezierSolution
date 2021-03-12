@@ -154,7 +154,7 @@ namespace BezierSolution
 
 		[SerializeField]
 		[HideInInspector]
-		internal bool Internal_FlipAutoCalculatedNormals = false;
+		internal float Internal_AutoCalculatedNormalsAngle = 0f;
 #endif
 
 		public int Count { get { return endPoints.Count; } }
@@ -195,7 +195,7 @@ namespace BezierSolution
 				}
 
 				if( Internal_AutoCalculateNormals )
-					AutoCalculateNormals( Internal_FlipAutoCalculatedNormals );
+					AutoCalculateNormals( Internal_AutoCalculatedNormalsAngle );
 
 				Internal_IsDirty = false;
 			}
@@ -887,54 +887,67 @@ namespace BezierSolution
 			}
 		}
 
-		// Alternative approach1: https://stackoverflow.com/a/25458216/2373034
-		// Alternative approach2: https://stackoverflow.com/a/14241741/2373034
-		public void AutoCalculateNormals( bool flipNormals )
+		// Credit: https://stackoverflow.com/a/14241741/2373034
+		// Alternative approach: https://stackoverflow.com/a/25458216/2373034
+		public void AutoCalculateNormals( float normalAngle = 0f, int smoothness = 10 )
 		{
-			const float DELTA_T = 0.025f;
-			const float ONE_MINUS_DELTA_T = 1f - DELTA_T;
-
 			for( int i = 0; i < endPoints.Count; i++ )
 				endPoints[i].RefreshIfChanged();
 
-			for( int i = 0; i < endPoints.Count; i++ )
-			{
-				if( i < endPoints.Count - 1 )
-					endPoints[i].normal = CalculateFrenetNormal( i, i + 1, 0f, DELTA_T, endPoints[i].autoCalculatedNormalAngleOffset );
-				else if( loop )
-					endPoints[i].normal = CalculateFrenetNormal( i, 0, 0f, DELTA_T, endPoints[i].autoCalculatedNormalAngleOffset );
-				else
-					endPoints[i].normal = CalculateFrenetNormal( i - 1, i, ONE_MINUS_DELTA_T, 1f, endPoints[i].autoCalculatedNormalAngleOffset );
+			smoothness = Mathf.Max( 1, smoothness );
+			float _1OverSmoothness = 1f / smoothness;
 
-				if( flipNormals )
-					endPoints[i].normal = -endPoints[i].normal;
-			}
-
-			if( loop )
-			{
-				Vector3 point0Normal2 = CalculateFrenetNormal( endPoints.Count - 1, 0, ONE_MINUS_DELTA_T, 1f, endPoints[0].autoCalculatedNormalAngleOffset );
-				if( flipNormals )
-					point0Normal2 = -point0Normal2;
-
-				if( point0Normal2 != -endPoints[0].normal )
-					endPoints[0].normal = ( endPoints[0].normal + point0Normal2 ).normalized;
-			}
-		}
-
-		private Vector3 CalculateFrenetNormal( int pointIndex1, int pointIndex2, float localT1, float localT2, float rotateAngle )
-		{
-			PointIndexTuple tuple = new PointIndexTuple( this, pointIndex1, pointIndex2, 0f );
-			Vector3 tangent1 = tuple.GetTangent( localT1 ).normalized;
-			Vector3 tangent2 = tuple.GetTangent( localT2 ).normalized;
+			// Calculate initial point's normal using Frenet formula
+			PointIndexTuple tuple = new PointIndexTuple( this, 0, 1, 0f );
+			Vector3 tangent1 = tuple.GetTangent( 0f ).normalized;
+			Vector3 tangent2 = tuple.GetTangent( 0.025f ).normalized;
 			Vector3 cross = Vector3.Cross( tangent2, tangent1 ).normalized;
 			if( Mathf.Approximately( cross.sqrMagnitude, 0f ) ) // This is not a curved spline but rather a straight line
 				cross = Vector3.Cross( tangent2, ( tangent2.x != 0f || tangent2.z != 0f ) ? Vector3.up : Vector3.forward );
 
-			Vector3 normal = Vector3.Cross( cross, tangent1 ).normalized;
-			if( rotateAngle != 0f )
-				normal = Quaternion.AngleAxis( rotateAngle, tangent1 ) * normal;
+			endPoints[0].normal = Vector3.Cross( cross, tangent1 ).normalized;
 
-			return normal;
+			// Calculate other points' normals by iteratively (smoothness) calculating normals between the previous point and the next point
+			for( int i = 0; i < endPoints.Count; i++ )
+			{
+				if( i < endPoints.Count - 1 )
+					tuple = new PointIndexTuple( this, i, i + 1, 0f );
+				else if( loop )
+					tuple = new PointIndexTuple( this, i, 0, 0f );
+				else
+					break;
+
+				Vector3 prevNormal = endPoints[i].normal;
+				for( int j = 1; j <= smoothness; j++ )
+				{
+					Vector3 tangent = tuple.GetTangent( j * _1OverSmoothness ).normalized;
+					prevNormal = Vector3.Cross( tangent, Vector3.Cross( prevNormal, tangent ).normalized ).normalized;
+				}
+
+				if( i < endPoints.Count - 1 )
+					endPoints[i + 1].normal = prevNormal;
+				else if( prevNormal != -endPoints[0].normal )
+					endPoints[0].normal = ( endPoints[0].normal + prevNormal ).normalized;
+			}
+
+			// Rotate normals
+			for( int i = 0; i < endPoints.Count; i++ )
+			{
+				float rotateAngle = normalAngle + endPoints[i].autoCalculatedNormalAngleOffset;
+				if( Mathf.Approximately( rotateAngle, 180f ) )
+					endPoints[i].normal = -endPoints[i].normal;
+				else if( !Mathf.Approximately( rotateAngle, 0f ) )
+				{
+					if( i < endPoints.Count - 1 )
+						tuple = new PointIndexTuple( this, i, i + 1, 0f );
+					else if( loop )
+						tuple = new PointIndexTuple( this, i, 0, 0f );
+					else
+						tuple = new PointIndexTuple( this, i - 1, i, 1f );
+
+					endPoints[i].normal = Quaternion.AngleAxis( rotateAngle, tuple.GetTangent() ) * endPoints[i].normal;
+				}
+			}
 		}
 
 		private float AccuracyToStepSize( float accuracy )
