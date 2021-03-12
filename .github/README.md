@@ -44,6 +44,10 @@ The user interface for the spline editor should be pretty self-explanatory. Howe
 
 **Show Control Points:** sets whether or not the control points of the end points will be drawn in Scene window
 
+**Show Directions:** sets whether or not the control points' directions will be drawn in Scene window
+
+**Show Point Indices:** sets whether or not the end points' indices will be drawn in Scene window
+
 **Show Normals:** sets whether or not the end points' normals will be drawn in Scene window
 
 **Auto Calculated Normals Angle:** when *Auto Calculate Normals* button is clicked, all normals will be rotated around their Z axis by the specified amount (each end point's rotation angle can further be customized from the end point's Inspector)
