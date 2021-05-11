@@ -31,12 +31,12 @@ namespace BezierSolution.Extras
 
 			private int CompareForwards( BezierPoint x, BezierPoint y )
 			{
-				return x.Internal_Index.CompareTo( y.Internal_Index );
+				return x.index.CompareTo( y.index );
 			}
 
 			private int CompareBackwards( BezierPoint x, BezierPoint y )
 			{
-				return y.Internal_Index.CompareTo( x.Internal_Index );
+				return y.index.CompareTo( x.index );
 			}
 		}
 
@@ -44,24 +44,25 @@ namespace BezierSolution.Extras
 		private const float INSERTED_END_POINT_SIZE = 0.075f;
 		private const float INSERTED_END_POINT_MAX_DISTANCE_SQR = 0.5f * 0.5f;
 
-		private const string MOVE_MULTIPLE_POINTS_IN_OPPOSITE_DIRECTIONS_PREF = "BezierSolution_OppositeTransformation";
-		private const string VISUALIZE_EXTRA_DATA_AS_FRUSTUM_PREF = "BezierSolution_VisualizeFrustum";
-
 		private static readonly Color RESET_POINT_BUTTON_COLOR = new Color( 1f, 1f, 0.65f, 1f );
 		private static readonly Color REMOVE_POINT_BUTTON_COLOR = new Color( 1f, 0.65f, 0.65f, 1f );
 		private static readonly Color INSERTED_END_POINT_COLOR = new Color( 0f, 1f, 1f, 1f );
 		private static readonly GUIContent MULTI_EDIT_TIP = new GUIContent( "Tip: Hold Shift to affect all points' Transforms" );
 		private static readonly GUIContent OPPOSITE_TRANSFORMATION_OFF_TIP = new GUIContent( "(in THE SAME direction - hit C to toggle)" );
 		private static readonly GUIContent OPPOSITE_TRANSFORMATION_ON_TIP = new GUIContent( "(in OPPOSITE directions - hit C to toggle)" );
+		private static readonly GUIContent INSERT_POINT_AT_CURSOR_TIP = new GUIContent( "Insert Point At Cursor", "Quickly inserts new end points to the clicked sections of the spline" );
 		private static readonly GUIContent INSERT_POINT_PRESERVE_SHAPE = new GUIContent( "Preserve Shape", "Spline's shape will be preserved but the neighboring end points' 'Handle Mode' will no longer be 'Mirrored'" );
 		private static readonly GUIContent APPLY_TO_ALL_POINTS = new GUIContent( "All", "Apply to all points in the selected spline(s)" );
+		private static readonly GUIContent HANDLE_MODE_TIP = new GUIContent( "Handle Mode", "Control points are handled in one of 3 ways:\n-Free: allows moving control points independently\n-Mirrored: places the control points opposite to each other\n-Aligned: ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)" );
+		private static readonly GUIContent EXTRA_DATA_TIP = new GUIContent( "Extra Data", "Each end point can store additional data that holds 4 floats. You can interpolate between points' extra data via spline's GetExtraData function. For example, extra data can be used to assign a custom rotation value to each end point that can be read by BezierWalker components" );
 		private static readonly GUIContent NORMALS_SET_TO_CAMERA_FORWARD = new GUIContent( "C", "Set to Scene camera's forward direction" );
 		private static readonly GUIContent NORMALS_LOOK_AT_CAMERA = new GUIContent( "L", "Look towards Scene camera's current position" );
+		private static readonly GUIContent NORMALIZE_NORMALS_TIP = new GUIContent( "Normalize Normals", "Sets normal vectors' length to 1" );
 		private static readonly GUIContent EXTRA_DATA_SET_AS_CAMERA_FORWARD = new GUIContent( "C", "Set as Scene camera's current rotation" );
 		private static readonly GUIContent EXTRA_DATA_VIEW_AS_FRUSTUM = new GUIContent( "V", "Visualize data as camera frustum in Scene" );
 
 		private SplineHolder[] selection;
-		private BezierSpline[] allSplines;
+		internal BezierSpline[] allSplines;
 		private BezierPoint[] allPoints;
 		private int pointCount;
 
@@ -78,14 +79,9 @@ namespace BezierSolution.Extras
 
 		private PointInsertionMode insertPointAtCursor = PointInsertionMode.None;
 
-		private bool moveMultiplePointsInOppositeDirections;
-
-		// Having two variables allow us to show frustum gizmos only when a point is selected
-		// and not lose the original value when OnDisable is called
-		private bool m_visualizeExtraDataAsFrustum;
-		public static bool VisualizeExtraDataAsFrustum { get; private set; }
-
 		private Tool previousTool = Tool.None;
+
+		public static BezierPointEditor ActiveEditor { get; private set; }
 
 		private void OnEnable()
 		{
@@ -175,8 +171,7 @@ namespace BezierSolution.Extras
 					selection[i].spline.Refresh();
 			}
 
-			moveMultiplePointsInOppositeDirections = EditorPrefs.GetBool( MOVE_MULTIPLE_POINTS_IN_OPPOSITE_DIRECTIONS_PREF, false );
-			VisualizeExtraDataAsFrustum = m_visualizeExtraDataAsFrustum = EditorPrefs.GetBool( VISUALIZE_EXTRA_DATA_AS_FRUSTUM_PREF, false );
+			ActiveEditor = this;
 
 			Tools.hidden = true;
 
@@ -187,7 +182,7 @@ namespace BezierSolution.Extras
 		private void OnDisable()
 		{
 			insertPointAtCursor = PointInsertionMode.None;
-			VisualizeExtraDataAsFrustum = false;
+			ActiveEditor = null;
 
 			Tools.hidden = false;
 
@@ -245,17 +240,14 @@ namespace BezierSolution.Extras
 					EditorGUI.DropShadowLabel( multiEditTipRect, MULTI_EDIT_TIP, style );
 					if( tool == Tool.Move || tool == Tool.Rotate )
 					{
-						Rect multiEditOppositeTransformationTipRect = new Rect( new Vector2( multiEditTipRect.width + 4f, 0f ), style.CalcSize( moveMultiplePointsInOppositeDirections ? OPPOSITE_TRANSFORMATION_ON_TIP : OPPOSITE_TRANSFORMATION_OFF_TIP ) );
-						EditorGUI.DropShadowLabel( multiEditOppositeTransformationTipRect, moveMultiplePointsInOppositeDirections ? OPPOSITE_TRANSFORMATION_ON_TIP : OPPOSITE_TRANSFORMATION_OFF_TIP, style );
+						Rect multiEditOppositeTransformationTipRect = new Rect( new Vector2( multiEditTipRect.width + 4f, 0f ), style.CalcSize( BezierSettings.MoveMultiplePointsInOppositeDirections ? OPPOSITE_TRANSFORMATION_ON_TIP : OPPOSITE_TRANSFORMATION_OFF_TIP ) );
+						EditorGUI.DropShadowLabel( multiEditOppositeTransformationTipRect, BezierSettings.MoveMultiplePointsInOppositeDirections ? OPPOSITE_TRANSFORMATION_ON_TIP : OPPOSITE_TRANSFORMATION_OFF_TIP, style );
 					}
 
 					Handles.EndGUI();
 
 					if( e.type == EventType.KeyUp && e.keyCode == KeyCode.C && ( tool == Tool.Move || tool == Tool.Rotate ) )
-					{
-						moveMultiplePointsInOppositeDirections = !moveMultiplePointsInOppositeDirections;
-						EditorPrefs.SetBool( MOVE_MULTIPLE_POINTS_IN_OPPOSITE_DIRECTIONS_PREF, moveMultiplePointsInOppositeDirections );
-					}
+						BezierSettings.MoveMultiplePointsInOppositeDirections = !BezierSettings.MoveMultiplePointsInOppositeDirections;
 				}
 
 				if( e.type == EventType.MouseDown && e.button == 0 )
@@ -280,7 +272,7 @@ namespace BezierSolution.Extras
 			// If Alt key is pressed, Transform handles aren't drawn at all, so BezierPoint gizmos can be drawn immediately
 			// When in point insertion mode, handles aren't drawn and BezierPoint gizmos must be drawn immediately
 			if( e.alt || !e.control || insertPointAtCursor != PointInsertionMode.None )
-				BezierUtils.DrawBezierPoint( point, point.Internal_Index + 1, true );
+				BezierUtils.DrawBezierPoint( point, point.index + 1, true );
 
 			if( insertPointAtCursor != PointInsertionMode.None )
 			{
@@ -321,12 +313,12 @@ namespace BezierSolution.Extras
 						// When left clicked, insert a point at the highlighted position
 						if( e.type == EventType.MouseDown && e.button == 0 )
 						{
-							BezierSpline.PointIndexTuple tuple = closestSpline.GetNearestPointIndicesTo( closestPointNormalizedT );
+							BezierSpline.Segment segment = closestSpline.GetSegmentAt( closestPointNormalizedT );
 
 							Vector3 position, precedingControlPointPosition, followingControlPointPosition;
-							CalculateInsertedPointPosition( tuple.point1, tuple.point2, tuple.localT, insertPointAtCursor == PointInsertionMode.PreserveShape, out position, out precedingControlPointPosition, out followingControlPointPosition );
+							CalculateInsertedPointPosition( segment.point1, segment.point2, segment.localT, insertPointAtCursor == PointInsertionMode.PreserveShape, out position, out precedingControlPointPosition, out followingControlPointPosition );
 
-							BezierPoint newPoint = closestSpline.InsertNewPointAt( tuple.index2 );
+							BezierPoint newPoint = closestSpline.InsertNewPointAt( segment.point2.index );
 							newPoint.position = position;
 							if( insertPointAtCursor == PointInsertionMode.PreserveShape )
 							{
@@ -394,7 +386,7 @@ namespace BezierSolution.Extras
 
 					// No need to show gizmos for control points in Autoconstruct mode
 					Vector3 position;
-					if( BezierUtils.ShowControlPoints && ( !point.Internal_Spline || point.Internal_Spline.Internal_AutoConstructMode == SplineAutoConstructMode.None ) )
+					if( BezierSettings.ShowControlPoints && ( !point.spline || point.spline.autoConstructMode == SplineAutoConstructMode.None ) )
 					{
 						EditorGUI.BeginChangeCheck();
 						position = Handles.PositionHandle( point.precedingControlPointPosition, Tools.pivotRotation == PivotRotation.Local ? precedingPointRotations[pointIndex] : Quaternion.identity );
@@ -406,7 +398,7 @@ namespace BezierSolution.Extras
 							if( e.shift && allPoints.Length > 1 )
 							{
 								Vector3 delta = Matrix4x4.TRS( precedingPointInitialPositions[pointIndex], Tools.pivotRotation == PivotRotation.Local ? precedingPointRotations[pointIndex] : Quaternion.identity, Vector3.Distance( precedingPointInitialPositions[pointIndex], point.position ) * Vector3.one ).inverse.MultiplyPoint3x4( position );
-								if( moveMultiplePointsInOppositeDirections )
+								if( BezierSettings.MoveMultiplePointsInOppositeDirections )
 									delta = -delta;
 
 								for( int i = 0; i < allPoints.Length; i++ )
@@ -445,7 +437,7 @@ namespace BezierSolution.Extras
 							if( e.shift && allPoints.Length > 1 )
 							{
 								Vector3 delta = Matrix4x4.TRS( followingPointInitialPositions[pointIndex], Tools.pivotRotation == PivotRotation.Local ? followingPointRotations[pointIndex] : Quaternion.identity, Vector3.Distance( followingPointInitialPositions[pointIndex], point.position ) * Vector3.one ).inverse.MultiplyPoint3x4( position );
-								if( moveMultiplePointsInOppositeDirections )
+								if( BezierSettings.MoveMultiplePointsInOppositeDirections )
 									delta = -delta;
 
 								for( int i = 0; i < allPoints.Length; i++ )
@@ -486,7 +478,7 @@ namespace BezierSolution.Extras
 						if( e.shift && allPoints.Length > 1 )
 						{
 							Vector3 delta = position - pointInitialPositions[pointIndex];
-							if( moveMultiplePointsInOppositeDirections )
+							if( BezierSettings.MoveMultiplePointsInOppositeDirections )
 								delta = -delta;
 
 							for( int i = 0; i < allPoints.Length; i++ )
@@ -552,7 +544,7 @@ namespace BezierSolution.Extras
 						if( e.shift && allPoints.Length > 1 )
 						{
 							Quaternion delta = pointFinalRotation * Quaternion.Inverse( pointInitialRotations[pointIndex] );
-							if( moveMultiplePointsInOppositeDirections )
+							if( BezierSettings.MoveMultiplePointsInOppositeDirections )
 								delta = Quaternion.Inverse( delta );
 
 							for( int i = 0; i < allPoints.Length; i++ )
@@ -637,7 +629,7 @@ namespace BezierSolution.Extras
 			}
 
 			if( e.control )
-				BezierUtils.DrawBezierPoint( point, point.Internal_Index + 1, true );
+				BezierUtils.DrawBezierPoint( point, point.index + 1, true );
 		}
 
 		public override void OnInspectorGUI()
@@ -664,7 +656,7 @@ namespace BezierSolution.Extras
 					{
 						for( int j = 0; j < points.Length; j++ )
 						{
-							int prevIndex = points[j].Internal_Index - 1;
+							int prevIndex = points[j].index - 1;
 							if( prevIndex < 0 )
 								prevIndex = spline.Count - 1;
 
@@ -682,7 +674,7 @@ namespace BezierSolution.Extras
 				GUIUtility.ExitGUI();
 			}
 
-			string pointIndex = ( pointCount == 1 && selection[0].spline ) ? ( allPoints[0].Internal_Index + 1 ).ToString() : "-";
+			string pointIndex = ( pointCount == 1 && selection[0].spline ) ? ( allPoints[0].index + 1 ).ToString() : "-";
 			string splineLength = ( selection.Length == 1 && selection[0].spline ) ? selection[0].spline.Count.ToString() : "-";
 			GUILayout.Box( "Selected Point: " + pointIndex + " / " + splineLength, GUILayout.ExpandWidth( true ) );
 
@@ -698,7 +690,7 @@ namespace BezierSolution.Extras
 					{
 						for( int j = 0; j < points.Length; j++ )
 						{
-							int nextIndex = points[j].Internal_Index + 1;
+							int nextIndex = points[j].index + 1;
 							if( nextIndex >= spline.Count )
 								nextIndex = 0;
 
@@ -735,7 +727,7 @@ namespace BezierSolution.Extras
 						int[] newIndices = new int[points.Length];
 						for( int j = 0; j < points.Length; j++ )
 						{
-							int index = points[j].Internal_Index;
+							int index = points[j].index;
 							int newIndex = index - 1;
 							if( newIndex < 0 )
 								newIndex = spline.Count - 1;
@@ -746,7 +738,7 @@ namespace BezierSolution.Extras
 						for( int j = 0; j < points.Length; j++ )
 						{
 							Undo.RegisterCompleteObjectUndo( points[j].transform.parent, "Change point index" );
-							spline.Internal_ChangePointIndex( points[j].Internal_Index, newIndices[j], "Change point index" );
+							spline.ChangePointIndex( points[j].index, newIndices[j], "Change point index" );
 						}
 
 						selection[i].SortPoints( true );
@@ -771,7 +763,7 @@ namespace BezierSolution.Extras
 						int[] newIndices = new int[points.Length];
 						for( int j = 0; j < points.Length; j++ )
 						{
-							int index = points[j].Internal_Index;
+							int index = points[j].index;
 							int newIndex = index + 1;
 							if( newIndex >= spline.Count )
 								newIndex = 0;
@@ -782,7 +774,7 @@ namespace BezierSolution.Extras
 						for( int j = 0; j < points.Length; j++ )
 						{
 							Undo.RegisterCompleteObjectUndo( points[j].transform.parent, "Change point index" );
-							spline.Internal_ChangePointIndex( points[j].Internal_Index, newIndices[j], "Change point index" );
+							spline.ChangePointIndex( points[j].index, newIndices[j], "Change point index" );
 						}
 
 						selection[i].SortPoints( true );
@@ -794,8 +786,8 @@ namespace BezierSolution.Extras
 
 			EditorGUILayout.Space();
 
-			bool allSplinesUsingAutoConstructMode = !System.Array.Find( allSplines, ( s ) => s.Internal_AutoConstructMode == SplineAutoConstructMode.None );
-			bool anySplineUsingAutoCalculateNormals = System.Array.Find( allSplines, ( s ) => s.Internal_AutoCalculateNormals );
+			bool allSplinesUsingAutoConstructMode = !System.Array.Find( allSplines, ( s ) => s.autoConstructMode == SplineAutoConstructMode.None );
+			bool anySplineUsingAutoCalculateNormals = System.Array.Find( allSplines, ( s ) => s.autoCalculateNormals );
 
 			GUILayout.BeginHorizontal();
 			if( GUILayout.Button( "Insert Point Before" ) )
@@ -813,7 +805,7 @@ namespace BezierSolution.Extras
 
 			GUILayout.BeginHorizontal();
 			EditorGUI.BeginChangeCheck();
-			PointInsertionMode insertPointAtCursorMode = GUILayout.Toggle( insertPointAtCursor != PointInsertionMode.None, "Insert Point At Cursor", GUI.skin.button ) ? PointInsertionMode.Simple : PointInsertionMode.None;
+			PointInsertionMode insertPointAtCursorMode = GUILayout.Toggle( insertPointAtCursor != PointInsertionMode.None, INSERT_POINT_AT_CURSOR_TIP, GUI.skin.button ) ? PointInsertionMode.Simple : PointInsertionMode.None;
 			if( EditorGUI.EndChangeCheck() )
 			{
 				insertPointAtCursor = insertPointAtCursorMode;
@@ -852,7 +844,7 @@ namespace BezierSolution.Extras
 
 			EditorGUI.showMixedValue = HasMultipleDifferentValues( ( p1, p2 ) => p1.handleMode == p2.handleMode );
 			EditorGUI.BeginChangeCheck();
-			BezierPoint.HandleMode handleMode = (BezierPoint.HandleMode) EditorGUILayout.EnumPopup( "Handle Mode", allPoints[0].handleMode );
+			BezierPoint.HandleMode handleMode = (BezierPoint.HandleMode) EditorGUILayout.EnumPopup( HANDLE_MODE_TIP, allPoints[0].handleMode );
 			if( EditorGUI.EndChangeCheck() )
 			{
 				for( int i = 0; i < allPoints.Length; i++ )
@@ -920,7 +912,7 @@ namespace BezierSolution.Extras
 			if( GUILayout.Button( APPLY_TO_ALL_POINTS, BezierUtils.GL_WIDTH_60 ) )
 			{
 				for( int i = 0; i < allSplines.Length; i++ )
-					SwapControlPoints( allSplines[i].Internal_Points );
+					SwapControlPoints( allSplines[i].endPoints );
 
 				SceneView.RepaintAll();
 			}
@@ -987,7 +979,7 @@ namespace BezierSolution.Extras
 					}
 
 					for( int i = 0; i < allSplines.Length; i++ )
-						allSplines[i].Internal_SetDirtyImmediatelyWithUndo( "Change Normal Angle" );
+						BezierUtils.SetSplineDirtyWithUndo( allSplines[i], "Change Normal Angle", InternalDirtyFlags.NormalOffsetChange );
 
 					SceneView.RepaintAll();
 				}
@@ -1002,18 +994,18 @@ namespace BezierSolution.Extras
 				{
 					for( int i = 0; i < allPoints.Length; i++ )
 					{
-						BezierSpline spline = allPoints[i].Internal_Spline;
-						int index = allPoints[i].Internal_Index;
+						BezierSpline spline = allPoints[i].spline;
+						int index = allPoints[i].index;
 
 						if( spline )
 						{
 							Vector3 tangent;
 							if( index < spline.Count - 1 )
-								tangent = new BezierSpline.PointIndexTuple( spline, index, index + 1, 0f ).GetTangent();
+								tangent = new BezierSpline.Segment( spline[index], spline[index + 1], 0f ).GetTangent();
 							else if( spline.loop )
-								tangent = new BezierSpline.PointIndexTuple( spline, index, 0, 0f ).GetTangent();
+								tangent = new BezierSpline.Segment( spline[index], spline[0], 0f ).GetTangent();
 							else
-								tangent = new BezierSpline.PointIndexTuple( spline, index - 1, index, 1f ).GetTangent();
+								tangent = new BezierSpline.Segment( spline[index - 1], spline[index], 1f ).GetTangent();
 
 							Undo.RecordObject( allPoints[i], "Change Normal Rotate Angle" );
 							allPoints[i].normal = Quaternion.AngleAxis( normalRotationAngle, tangent ) * allPoints[i].normal;
@@ -1035,14 +1027,14 @@ namespace BezierSolution.Extras
 			if( GUILayout.Button( APPLY_TO_ALL_POINTS, BezierUtils.GL_WIDTH_60 ) )
 			{
 				for( int i = 0; i < allSplines.Length; i++ )
-					FlipNormals( allSplines[i].Internal_Points );
+					FlipNormals( allSplines[i].endPoints );
 
 				SceneView.RepaintAll();
 			}
 			GUILayout.EndHorizontal();
 
 			GUILayout.BeginHorizontal();
-			if( GUILayout.Button( "Normalize Normals" ) )
+			if( GUILayout.Button( NORMALIZE_NORMALS_TIP ) )
 			{
 				NormalizeNormals( allPoints );
 				SceneView.RepaintAll();
@@ -1050,7 +1042,7 @@ namespace BezierSolution.Extras
 			if( GUILayout.Button( APPLY_TO_ALL_POINTS, BezierUtils.GL_WIDTH_60 ) )
 			{
 				for( int i = 0; i < allSplines.Length; i++ )
-					NormalizeNormals( allSplines[i].Internal_Points );
+					NormalizeNormals( allSplines[i].endPoints );
 
 				SceneView.RepaintAll();
 			}
@@ -1065,7 +1057,7 @@ namespace BezierSolution.Extras
 			if( GUILayout.Button( APPLY_TO_ALL_POINTS, BezierUtils.GL_WIDTH_60 ) )
 			{
 				for( int i = 0; i < allSplines.Length; i++ )
-					ResetNormals( allSplines[i].Internal_Points );
+					ResetNormals( allSplines[i].endPoints );
 
 				SceneView.RepaintAll();
 			}
@@ -1081,7 +1073,7 @@ namespace BezierSolution.Extras
 			EditorGUI.BeginChangeCheck();
 			Rect extraDataRect = EditorGUILayout.GetControlRect( false, EditorGUIUtility.singleLineHeight ); // When using GUILayout, button isn't vertically centered
 			extraDataRect.width -= 65f;
-			BezierPoint.ExtraData extraData = EditorGUI.Vector4Field( extraDataRect, "Extra Data", allPoints[0].extraData );
+			BezierPoint.ExtraData extraData = EditorGUI.Vector4Field( extraDataRect, EXTRA_DATA_TIP, allPoints[0].extraData );
 			extraDataRect.x += extraDataRect.width + 5f;
 			extraDataRect.width = 30f;
 			if( GUI.Button( extraDataRect, EXTRA_DATA_SET_AS_CAMERA_FORWARD ) )
@@ -1101,13 +1093,11 @@ namespace BezierSolution.Extras
 
 			extraDataRect.x += 30f;
 			EditorGUI.BeginChangeCheck();
-			m_visualizeExtraDataAsFrustum = GUI.Toggle( extraDataRect, m_visualizeExtraDataAsFrustum, EXTRA_DATA_VIEW_AS_FRUSTUM, GUI.skin.button );
+			bool visualizeExtraDataAsFrustum = GUI.Toggle( extraDataRect, BezierSettings.VisualizeExtraDataAsFrustum, EXTRA_DATA_VIEW_AS_FRUSTUM, GUI.skin.button );
 			if( EditorGUI.EndChangeCheck() )
 			{
-				VisualizeExtraDataAsFrustum = m_visualizeExtraDataAsFrustum;
+				BezierSettings.VisualizeExtraDataAsFrustum = visualizeExtraDataAsFrustum;
 				SceneView.RepaintAll();
-
-				EditorPrefs.SetBool( VISUALIZE_EXTRA_DATA_AS_FRUSTUM_PREF, m_visualizeExtraDataAsFrustum );
 			}
 			GUILayout.EndHorizontal();
 
@@ -1146,7 +1136,7 @@ namespace BezierSolution.Extras
 			GUI.color = c;
 
 			for( int i = 0; i < allSplines.Length; i++ )
-				allSplines[i].Internal_CheckDirty();
+				allSplines[i].CheckDirty();
 		}
 
 		private bool CheckCommands()
@@ -1210,7 +1200,7 @@ namespace BezierSolution.Extras
 					BezierPoint newPoint;
 					if( spline )
 					{
-						int pointIndex = points[j].Internal_Index;
+						int pointIndex = points[j].index;
 						if( insertAfter )
 							pointIndex++;
 
@@ -1281,7 +1271,7 @@ namespace BezierSolution.Extras
 				{
 					BezierPoint newPoint;
 					if( spline )
-						newPoint = spline.DuplicatePointAt( points[j].Internal_Index );
+						newPoint = spline.DuplicatePointAt( points[j].index );
 					else
 						newPoint = Instantiate( points[j], points[j].transform.parent );
 
@@ -1318,9 +1308,9 @@ namespace BezierSolution.Extras
 			SceneView.RepaintAll();
 		}
 
-		private void SwapControlPoints( BezierPoint[] points )
+		private void SwapControlPoints( IList<BezierPoint> points )
 		{
-			for( int i = 0; i < points.Length; i++ )
+			for( int i = 0; i < points.Count; i++ )
 			{
 				Undo.RecordObject( points[i], "Swap Control Points" );
 				Vector3 temp = points[i].precedingControlPointLocalPosition;
@@ -1357,18 +1347,18 @@ namespace BezierSolution.Extras
 			}
 		}
 
-		private void FlipNormals( BezierPoint[] points )
+		private void FlipNormals( IList<BezierPoint> points )
 		{
-			for( int i = 0; i < points.Length; i++ )
+			for( int i = 0; i < points.Count; i++ )
 			{
 				Undo.RecordObject( points[i], "Flip Normals" );
 				points[i].normal = -points[i].normal;
 			}
 		}
 
-		private void NormalizeNormals( BezierPoint[] points )
+		private void NormalizeNormals( IList<BezierPoint> points )
 		{
-			for( int i = 0; i < points.Length; i++ )
+			for( int i = 0; i < points.Count; i++ )
 			{
 				if( points[i].normal != Vector3.zero )
 				{
@@ -1378,9 +1368,9 @@ namespace BezierSolution.Extras
 			}
 		}
 
-		private void ResetNormals( BezierPoint[] points )
+		private void ResetNormals( IList<BezierPoint> points )
 		{
-			for( int i = 0; i < points.Length; i++ )
+			for( int i = 0; i < points.Count; i++ )
 			{
 				Undo.RecordObject( points[i], "Reset Normals" );
 				points[i].normal = Vector3.up;
@@ -1394,7 +1384,10 @@ namespace BezierSolution.Extras
 			for( int i = 0; i < selection.Length; i++ )
 			{
 				if( selection[i].spline )
+				{
+					selection[i].spline.dirtyFlags |= InternalDirtyFlags.All;
 					selection[i].spline.Refresh();
+				}
 			}
 
 			Repaint();

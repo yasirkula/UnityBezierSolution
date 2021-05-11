@@ -1,9 +1,8 @@
-﻿//#define IMMEDIATE_TRANSFORM_CHANGED_CHECKS // Less performant method but updates spline values immediately (rather than in LateUpdate)
-
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace BezierSolution
 {
+	[AddComponentMenu( "Bezier Solution/Bezier Point" )]
 	public class BezierPoint : MonoBehaviour
 	{
 		[System.Serializable]
@@ -75,40 +74,40 @@ namespace BezierSolution
 			get { return transform.localPosition; }
 			set
 			{
+				if( transform.localPosition == value )
+					return;
+
 				transform.localPosition = value;
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
 #pragma warning disable 0649
-		[SerializeField]
-		[HideInInspector]
+		[SerializeField, HideInInspector]
 		private Vector3 m_position;
 		public Vector3 position
 		{
-			get
-			{
-#if IMMEDIATE_TRANSFORM_CHANGED_CHECKS
-				if( transform.hasChanged )
-					Refresh();
-#endif
-				return m_position;
-			}
+			get { return m_position; }
 			set
 			{
+				if( transform.position == value )
+					return;
+
 				transform.position = value;
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
-#pragma warning restore 0649
 
 		public Quaternion localRotation
 		{
 			get { return transform.localRotation; }
 			set
 			{
+				if( transform.localRotation == value )
+					return;
+
 				transform.localRotation = value;
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
@@ -117,8 +116,11 @@ namespace BezierSolution
 			get { return transform.rotation; }
 			set
 			{
+				if( transform.rotation == value )
+					return;
+
 				transform.rotation = value;
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
@@ -127,8 +129,11 @@ namespace BezierSolution
 			get { return transform.localEulerAngles; }
 			set
 			{
+				if( transform.localEulerAngles == value )
+					return;
+
 				transform.localEulerAngles = value;
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
@@ -137,8 +142,11 @@ namespace BezierSolution
 			get { return transform.eulerAngles; }
 			set
 			{
+				if( transform.eulerAngles == value )
+					return;
+
 				transform.eulerAngles = value;
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
@@ -147,23 +155,24 @@ namespace BezierSolution
 			get { return transform.localScale; }
 			set
 			{
+				if( transform.localScale == value )
+					return;
+
 				transform.localScale = value;
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
-#pragma warning disable 0649
-		[SerializeField]
-		[HideInInspector]
+		[SerializeField, HideInInspector]
 		private Vector3 m_precedingControlPointLocalPosition = Vector3.left;
 		public Vector3 precedingControlPointLocalPosition
 		{
-			get
-			{
-				return m_precedingControlPointLocalPosition;
-			}
+			get { return m_precedingControlPointLocalPosition; }
 			set
 			{
+				if( m_precedingControlPointLocalPosition == value )
+					return;
+
 				m_precedingControlPointLocalPosition = value;
 				m_precedingControlPointPosition = transform.TransformPoint( value );
 
@@ -178,25 +187,20 @@ namespace BezierSolution
 					m_followingControlPointPosition = transform.TransformPoint( m_followingControlPointLocalPosition );
 				}
 
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
-		[SerializeField]
-		[HideInInspector]
+		[SerializeField, HideInInspector]
 		private Vector3 m_precedingControlPointPosition;
 		public Vector3 precedingControlPointPosition
 		{
-			get
-			{
-#if IMMEDIATE_TRANSFORM_CHANGED_CHECKS
-				if( transform.hasChanged )
-					Refresh();
-#endif
-				return m_precedingControlPointPosition;
-			}
+			get { return m_precedingControlPointPosition; }
 			set
 			{
+				if( m_precedingControlPointPosition == value )
+					return;
+
 				m_precedingControlPointPosition = value;
 				m_precedingControlPointLocalPosition = transform.InverseTransformPoint( value );
 
@@ -205,6 +209,7 @@ namespace BezierSolution
 					m_position = transform.position;
 					m_followingControlPointPosition = transform.TransformPoint( m_followingControlPointLocalPosition );
 
+					spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange;
 					transform.hasChanged = false;
 				}
 
@@ -220,21 +225,20 @@ namespace BezierSolution
 					m_followingControlPointLocalPosition = transform.InverseTransformPoint( m_followingControlPointPosition );
 				}
 
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
-		[SerializeField]
-		[HideInInspector]
+		[SerializeField, HideInInspector]
 		private Vector3 m_followingControlPointLocalPosition = Vector3.right;
 		public Vector3 followingControlPointLocalPosition
 		{
-			get
-			{
-				return m_followingControlPointLocalPosition;
-			}
+			get { return m_followingControlPointLocalPosition; }
 			set
 			{
+				if( m_followingControlPointLocalPosition == value )
+					return;
+
 				m_followingControlPointLocalPosition = value;
 				m_followingControlPointPosition = transform.TransformPoint( value );
 
@@ -249,25 +253,20 @@ namespace BezierSolution
 					m_precedingControlPointPosition = transform.TransformPoint( m_precedingControlPointLocalPosition );
 				}
 
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
-		[SerializeField]
-		[HideInInspector]
+		[SerializeField, HideInInspector]
 		private Vector3 m_followingControlPointPosition;
 		public Vector3 followingControlPointPosition
 		{
-			get
-			{
-#if IMMEDIATE_TRANSFORM_CHANGED_CHECKS
-				if( transform.hasChanged )
-					Refresh();
-#endif
-				return m_followingControlPointPosition;
-			}
+			get { return m_followingControlPointPosition; }
 			set
 			{
+				if( m_followingControlPointPosition == value )
+					return;
+
 				m_followingControlPointPosition = value;
 				m_followingControlPointLocalPosition = transform.InverseTransformPoint( value );
 
@@ -276,6 +275,7 @@ namespace BezierSolution
 					m_position = transform.position;
 					m_precedingControlPointPosition = transform.TransformPoint( m_precedingControlPointLocalPosition );
 
+					spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange;
 					transform.hasChanged = false;
 				}
 
@@ -291,49 +291,97 @@ namespace BezierSolution
 					m_precedingControlPointLocalPosition = transform.InverseTransformPoint( m_precedingControlPointPosition );
 				}
 
-				SetSplineDirty();
+				spline.dirtyFlags |= InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
-		[SerializeField]
-		[HideInInspector]
+		[SerializeField, HideInInspector]
 		private HandleMode m_handleMode = HandleMode.Mirrored;
 		public HandleMode handleMode
 		{
-			get
-			{
-				return m_handleMode;
-			}
+			get { return m_handleMode; }
 			set
 			{
+				if( m_handleMode == value )
+					return;
+
 				m_handleMode = value;
 
 				if( value == HandleMode.Aligned || value == HandleMode.Mirrored )
-					precedingControlPointLocalPosition = m_precedingControlPointLocalPosition;
+				{
+					// Temporarily change the value of m_precedingControlPointLocalPosition so that it will be different from precedingControlPointLocalPosition
+					// and precedingControlPointLocalPosition's setter will run
+					Vector3 _precedingControlPointLocalPosition = m_precedingControlPointLocalPosition;
+					m_precedingControlPointLocalPosition -= Vector3.one;
 
-				SetSplineDirty();
+					precedingControlPointLocalPosition = _precedingControlPointLocalPosition;
+				}
+
+				spline.dirtyFlags |= InternalDirtyFlags.ControlPointPositionChange;
 			}
 		}
 
-		[HideInInspector]
-		public Vector3 normal = Vector3.up;
-		[HideInInspector]
-		public float autoCalculatedNormalAngleOffset = 0f;
+		[SerializeField, HideInInspector]
+		[UnityEngine.Serialization.FormerlySerializedAs( "normal" )]
+		private Vector3 m_normal = Vector3.up;
+		public Vector3 normal
+		{
+			get { return m_normal; }
+			set
+			{
+				if( m_normal == value )
+					return;
 
-		[HideInInspector]
-		public ExtraData extraData;
+				m_normal = value;
+				spline.dirtyFlags |= InternalDirtyFlags.NormalChange;
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		[UnityEngine.Serialization.FormerlySerializedAs( "autoCalculatedNormalAngleOffset" )]
+		private float m_autoCalculatedNormalAngleOffset = 0f;
+		public float autoCalculatedNormalAngleOffset
+		{
+			get { return m_autoCalculatedNormalAngleOffset; }
+			set
+			{
+				if( m_autoCalculatedNormalAngleOffset == value )
+					return;
+
+				m_autoCalculatedNormalAngleOffset = value;
+				spline.dirtyFlags |= InternalDirtyFlags.NormalOffsetChange;
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		[UnityEngine.Serialization.FormerlySerializedAs( "extraData" )]
+		private ExtraData m_extraData;
+		public ExtraData extraData
+		{
+			get { return m_extraData; }
+			set
+			{
+				if( m_extraData == value )
+					return;
+
+				m_extraData = value;
+				spline.dirtyFlags |= InternalDirtyFlags.ExtraDataChange;
+			}
+		}
 #pragma warning restore 0649
 
-#if UNITY_EDITOR
-		[System.NonSerialized]
-		internal BezierSpline Internal_Spline;
-		[System.NonSerialized]
-		internal int Internal_Index;
-#endif
+		public BezierSpline spline { get; internal set; }
+		public int index { get; internal set; }
 
 		private void Awake()
 		{
 			transform.hasChanged = true;
+		}
+
+		private void OnDestroy()
+		{
+			if( spline )
+				spline.dirtyFlags |= InternalDirtyFlags.All;
 		}
 
 		public void CopyTo( BezierPoint other )
@@ -346,6 +394,11 @@ namespace BezierSolution
 
 			other.m_precedingControlPointLocalPosition = m_precedingControlPointLocalPosition;
 			other.m_followingControlPointLocalPosition = m_followingControlPointLocalPosition;
+
+			other.m_normal = m_normal;
+			other.m_autoCalculatedNormalAngleOffset = m_autoCalculatedNormalAngleOffset;
+
+			other.m_extraData = m_extraData;
 		}
 
 		public void Refresh()
@@ -359,19 +412,11 @@ namespace BezierSolution
 
 		internal void RefreshIfChanged()
 		{
-#if !IMMEDIATE_TRANSFORM_CHANGED_CHECKS
 			if( transform.hasChanged )
+			{
 				Refresh();
-#endif
-		}
-
-		[System.Diagnostics.Conditional( "UNITY_EDITOR" )]
-		private void SetSplineDirty()
-		{
-#if UNITY_EDITOR
-			if( Internal_Spline )
-				Internal_Spline.Internal_IsDirty = true;
-#endif
+				spline.dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
+			}
 		}
 
 		public void Reset()
@@ -382,6 +427,11 @@ namespace BezierSolution
 
 			precedingControlPointLocalPosition = Vector3.left;
 			followingControlPointLocalPosition = Vector3.right;
+
+			m_normal = Vector3.up;
+			m_autoCalculatedNormalAngleOffset = 0f;
+
+			m_extraData = new ExtraData();
 
 			transform.hasChanged = true;
 		}

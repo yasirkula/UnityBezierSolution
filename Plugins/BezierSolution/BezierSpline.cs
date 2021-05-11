@@ -10,25 +10,45 @@ using UnityEngine;
 #endif
 namespace BezierSolution
 {
-#if UNITY_EDITOR
-	internal enum SplineAutoConstructMode { None = 0, Linear = 1, Smooth1 = 2, Smooth2 = 3 };
-#endif
+	public enum SplineAutoConstructMode { None = 0, Linear = 1, Smooth1 = 2, Smooth2 = 3 };
 
+	[System.Flags]
+	internal enum InternalDirtyFlags
+	{
+		None = 0,
+		EndPointTransformChange = 1 << 1,
+		ControlPointPositionChange = 1 << 2,
+		NormalChange = 1 << 3,
+		NormalOffsetChange = 1 << 4,
+		ExtraDataChange = 1 << 5,
+		All = EndPointTransformChange | ControlPointPositionChange | NormalChange | NormalOffsetChange | ExtraDataChange
+	};
+
+	[System.Flags]
+	public enum DirtyFlags
+	{
+		None = 0,
+		SplineShapeChanged = 1 << 1,
+		NormalsChanged = 1 << 2,
+		ExtraDataChanged = 1 << 3,
+		All = SplineShapeChanged | NormalsChanged | ExtraDataChanged
+	};
+
+	public delegate void SplineChangeDelegate( BezierSpline spline, DirtyFlags dirtyFlags );
+
+	[AddComponentMenu( "Bezier Solution/Bezier Spline" )]
 	[ExecuteInEditMode]
 	public class BezierSpline : MonoBehaviour, IEnumerable<BezierPoint>
 	{
-		public struct PointIndexTuple
+		public struct Segment
 		{
 			public readonly BezierPoint point1, point2;
-			public readonly int index1, index2;
 			public readonly float localT;
 
-			public PointIndexTuple( BezierSpline spline, int index1, int index2, float localT )
+			public Segment( BezierPoint point1, BezierPoint point2, float localT )
 			{
-				this.point1 = spline[index1];
-				this.point2 = spline[index2];
-				this.index1 = index1;
-				this.index2 = index2;
+				this.point1 = point1;
+				this.point2 = point2;
 				this.localT = localT;
 			}
 
@@ -39,8 +59,8 @@ namespace BezierSolution
 
 			public float GetNormalizedT( float localT )
 			{
-				BezierSpline spline = point1.GetComponentInParent<BezierSpline>();
-				return ( index1 + localT ) / ( spline.loop ? spline.Count : ( spline.Count - 1 ) );
+				BezierSpline spline = point1.spline;
+				return ( point1.index + localT ) / ( spline.m_loop ? spline.Count : ( spline.Count - 1 ) );
 			}
 
 			public Vector3 GetPoint()
@@ -115,107 +135,289 @@ namespace BezierSolution
 			}
 		}
 
+		public struct EvenlySpacedPointsHolder
+		{
+			public readonly BezierSpline spline;
+			public readonly float splineLength;
+			public readonly float[] uniformNormalizedTs;
+
+			public EvenlySpacedPointsHolder( BezierSpline spline, float splineLength, float[] uniformNormalizedTs )
+			{
+				this.spline = spline;
+				this.splineLength = splineLength;
+				this.uniformNormalizedTs = uniformNormalizedTs;
+			}
+
+			public float GetNormalizedTAtPercentage( float percentage )
+			{
+				if( !spline.loop )
+				{
+					if( percentage <= 0f )
+						return 0f;
+					else if( percentage >= 1f )
+						return 1f;
+				}
+				else
+				{
+					while( percentage < 0f )
+						percentage += 1f;
+					while( percentage >= 1f )
+						percentage -= 1f;
+				}
+
+				float indexRaw = ( uniformNormalizedTs.Length - 1 ) * percentage;
+				int index = (int) indexRaw;
+				return Mathf.LerpUnclamped( uniformNormalizedTs[index], uniformNormalizedTs[index + 1], indexRaw - index );
+			}
+
+			public float GetNormalizedTAtDistance( float distance )
+			{
+				return GetNormalizedTAtPercentage( distance / splineLength );
+			}
+
+			public float GetPercentageAtNormalizedT( float normalizedT )
+			{
+				if( !spline.loop )
+				{
+					if( normalizedT <= 0f )
+						return 0f;
+					else if( normalizedT >= 1f )
+						return 1f;
+				}
+				else
+				{
+					if( normalizedT < 0f )
+						normalizedT += 1f;
+					if( normalizedT >= 1f )
+						normalizedT -= 1f;
+				}
+
+				// Perform binary search
+				int lowerBound = 0;
+				int upperBound = uniformNormalizedTs.Length - 1;
+				while( lowerBound <= upperBound )
+				{
+					int index = lowerBound + ( ( upperBound - lowerBound ) >> 1 );
+					float arrElement = uniformNormalizedTs[index];
+					if( arrElement < normalizedT )
+						lowerBound = index + 1;
+					else if( arrElement > normalizedT )
+						upperBound = index - 1;
+					else
+						return index / (float) ( uniformNormalizedTs.Length - 1 );
+				}
+
+				float inverseLerp = ( normalizedT - uniformNormalizedTs[lowerBound] ) / ( uniformNormalizedTs[lowerBound - 1] - uniformNormalizedTs[lowerBound] );
+				return ( lowerBound - inverseLerp ) / ( uniformNormalizedTs.Length - 1 );
+			}
+		}
+
 		public delegate BezierPoint.ExtraData ExtraDataLerpFunction( BezierPoint.ExtraData data1, BezierPoint.ExtraData data2, float normalizedT );
 
 		private static readonly ExtraDataLerpFunction defaultExtraDataLerpFunction = BezierPoint.ExtraData.LerpUnclamped;
 		private static Material gizmoMaterial;
 
-		private List<BezierPoint> endPoints = new List<BezierPoint>(); // This is not readonly because otherwise BezierWalkers' "Simulate In Editor" functionality may break after recompilation
-
-		public bool loop = false;
-		public bool drawGizmos = false;
-
-		public Color gizmoColor = Color.white;
-		private float gizmoStep = 0.05f;
-		[SerializeField] private int m_gizmoSmoothness = 4;
-		public int gizmoSmoothness
-		{
-			get { return m_gizmoSmoothness; }
-			set
-			{
-				m_gizmoSmoothness = value;
-				gizmoStep = 1f / ( endPoints.Count * Mathf.Clamp( m_gizmoSmoothness, 1, 30 ) );
-			}
-		}
-
-#if UNITY_EDITOR
-		internal BezierPoint[] Internal_Points { get { return endPoints.ToArray(); } }
-
-		[System.NonSerialized]
-		internal bool Internal_IsDirty;
-
-		[SerializeField]
-		[HideInInspector]
-		internal SplineAutoConstructMode Internal_AutoConstructMode = SplineAutoConstructMode.None;
-
-		[SerializeField]
-		[HideInInspector]
-		internal bool Internal_AutoCalculateNormals = false;
-
-		[SerializeField]
-		[HideInInspector]
-		internal float Internal_AutoCalculatedNormalsAngle = 0f;
-#endif
+		internal List<BezierPoint> endPoints = new List<BezierPoint>(); // This is not readonly because otherwise BezierWalkers' "Simulate In Editor" functionality may break after recompilation
 
 		public int Count { get { return endPoints.Count; } }
 		public BezierPoint this[int index] { get { return endPoints[index]; } }
 
-		public float Length { get { return GetLengthApproximately( 0f, 1f ); } }
+		private float? m_length = null;
+		public float length
+		{
+			get
+			{
+				if( m_length == null )
+					m_length = GetLengthApproximately( 0f, 1f );
+
+				return m_length.Value;
+			}
+		}
+
+		[System.Obsolete( "Length is renamed to length" )]
+		public float Length { get { return length; } }
+
+		[SerializeField, HideInInspector]
+		[UnityEngine.Serialization.FormerlySerializedAs( "loop" )]
+		private bool m_loop = false;
+		public bool loop
+		{
+			get { return m_loop; }
+			set
+			{
+				if( m_loop != value )
+				{
+					m_loop = value;
+					dirtyFlags |= InternalDirtyFlags.All;
+				}
+			}
+		}
+
+		public bool drawGizmos = false;
+		public Color gizmoColor = Color.white;
+		[UnityEngine.Serialization.FormerlySerializedAs( "m_gizmoSmoothness" )]
+		public int gizmoSmoothness = 4;
+
+		[SerializeField, HideInInspector]
+		[UnityEngine.Serialization.FormerlySerializedAs( "Internal_AutoConstructMode" )]
+		private SplineAutoConstructMode m_autoConstructMode = SplineAutoConstructMode.None;
+		public SplineAutoConstructMode autoConstructMode
+		{
+			get { return m_autoConstructMode; }
+			set
+			{
+				if( m_autoConstructMode != value )
+				{
+					m_autoConstructMode = value;
+
+					if( value != SplineAutoConstructMode.None )
+						dirtyFlags |= InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange;
+				}
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		[UnityEngine.Serialization.FormerlySerializedAs( "Internal_AutoCalculateNormals" )]
+		private bool m_autoCalculateNormals = false;
+		public bool autoCalculateNormals
+		{
+			get { return m_autoCalculateNormals; }
+			set
+			{
+				if( m_autoCalculateNormals != value )
+				{
+					m_autoCalculateNormals = value;
+					dirtyFlags |= InternalDirtyFlags.NormalOffsetChange;
+				}
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		[UnityEngine.Serialization.FormerlySerializedAs( "Internal_AutoCalculatedNormalsAngle" )]
+		private float m_autoCalculatedNormalsAngle = 0f;
+		public float autoCalculatedNormalsAngle
+		{
+			get { return m_autoCalculatedNormalsAngle; }
+			set
+			{
+				if( m_autoCalculatedNormalsAngle != value )
+				{
+					m_autoCalculatedNormalsAngle = value;
+					dirtyFlags |= InternalDirtyFlags.NormalOffsetChange;
+				}
+			}
+		}
+
+		private EvenlySpacedPointsHolder? m_evenlySpacedPoints = null;
+		public EvenlySpacedPointsHolder evenlySpacedPoints
+		{
+			get
+			{
+				if( m_evenlySpacedPoints == null )
+					m_evenlySpacedPoints = CalculateEvenlySpacedPoints();
+
+				return m_evenlySpacedPoints.Value;
+			}
+		}
+
+		public event SplineChangeDelegate onSplineChanged;
+
+		internal InternalDirtyFlags dirtyFlags;
 
 		private void Awake()
 		{
 			Refresh();
 		}
 
+#if UNITY_EDITOR
+		private void OnTransformChildrenChanged()
+		{
+			dirtyFlags |= InternalDirtyFlags.All;
+			Refresh();
+		}
+#endif
+
 		private void LateUpdate()
+		{
+			CheckDirty();
+		}
+
+		internal void CheckDirty()
 		{
 			for( int i = 0; i < endPoints.Count; i++ )
 				endPoints[i].RefreshIfChanged();
 
-#if UNITY_EDITOR
-			Internal_CheckDirty();
-#endif
-		}
-
-#if UNITY_EDITOR
-		private void OnTransformChildrenChanged()
-		{
-			Refresh();
-		}
-
-		internal void Internal_CheckDirty()
-		{
-			if( Internal_IsDirty && endPoints.Count >= 2 )
+			if( dirtyFlags != InternalDirtyFlags.None && endPoints.Count >= 2 )
 			{
-				switch( Internal_AutoConstructMode )
+				DirtyFlags publishedDirtyFlags = DirtyFlags.None;
+
+				if( ( dirtyFlags & InternalDirtyFlags.ExtraDataChange ) == InternalDirtyFlags.ExtraDataChange )
+					publishedDirtyFlags |= DirtyFlags.ExtraDataChanged;
+
+				if( ( dirtyFlags & ( InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange ) ) != InternalDirtyFlags.None )
 				{
-					case SplineAutoConstructMode.Linear: ConstructLinearPath(); break;
-					case SplineAutoConstructMode.Smooth1: AutoConstructSpline(); break;
-					case SplineAutoConstructMode.Smooth2: AutoConstructSpline2(); break;
+					if( m_autoConstructMode == SplineAutoConstructMode.None )
+						publishedDirtyFlags |= DirtyFlags.SplineShapeChanged;
+					else
+					{
+						switch( m_autoConstructMode )
+						{
+							case SplineAutoConstructMode.Linear: ConstructLinearPath(); break;
+							case SplineAutoConstructMode.Smooth1: AutoConstructSpline(); break;
+							case SplineAutoConstructMode.Smooth2: AutoConstructSpline2(); break;
+						}
+
+						// If a control point position was changed only, we've reverted that change by auto constructing the spline again
+						dirtyFlags &= ~InternalDirtyFlags.ControlPointPositionChange;
+
+						// If an end point's position was changed, then the spline's shape has indeed changed
+						if( ( dirtyFlags & InternalDirtyFlags.EndPointTransformChange ) == InternalDirtyFlags.EndPointTransformChange )
+							publishedDirtyFlags |= DirtyFlags.SplineShapeChanged;
+					}
 				}
 
-				if( Internal_AutoCalculateNormals )
-					AutoCalculateNormals( Internal_AutoCalculatedNormalsAngle );
-
-				Internal_IsDirty = false;
-			}
-		}
-
-		internal void Internal_SetDirtyImmediatelyWithUndo( string undo )
-		{
-			if( Internal_AutoCalculateNormals || Internal_AutoConstructMode != SplineAutoConstructMode.None )
-			{
-				for( int i = 0; i < endPoints.Count; i++ )
+				if( ( dirtyFlags & ( InternalDirtyFlags.NormalChange | InternalDirtyFlags.NormalOffsetChange | InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange ) ) != InternalDirtyFlags.None )
 				{
-					UnityEditor.Undo.RecordObject( endPoints[i], undo );
-					UnityEditor.Undo.RecordObject( endPoints[i].transform, undo );
+					if( !m_autoCalculateNormals )
+					{
+						// Normals are actually changed only when NormalChange flag is on
+						if( ( dirtyFlags & InternalDirtyFlags.NormalChange ) == InternalDirtyFlags.NormalChange )
+							publishedDirtyFlags |= DirtyFlags.NormalsChanged;
+					}
+					else
+					{
+						AutoCalculateNormals( m_autoCalculatedNormalsAngle );
+
+						// If an end point's normal vector was changed only, we've reverted that change by auto calculating the normals again
+						dirtyFlags &= ~InternalDirtyFlags.NormalChange;
+
+						// If an end point's position or normal calculation offset was changed, then the spline's normals have indeed changed
+						if( ( dirtyFlags & ( InternalDirtyFlags.NormalOffsetChange | InternalDirtyFlags.EndPointTransformChange | InternalDirtyFlags.ControlPointPositionChange ) ) != InternalDirtyFlags.None )
+							publishedDirtyFlags |= DirtyFlags.NormalsChanged;
+					}
 				}
 
-				Internal_IsDirty = true;
-				Internal_CheckDirty();
+				if( ( publishedDirtyFlags & DirtyFlags.SplineShapeChanged ) == DirtyFlags.SplineShapeChanged )
+				{
+					m_length = null;
+					m_evenlySpacedPoints = null;
+				}
+
+				if( onSplineChanged != null )
+				{
+					try
+					{
+						onSplineChanged( this, publishedDirtyFlags );
+					}
+					catch( System.Exception e )
+					{
+						Debug.LogException( e );
+					}
+				}
 			}
+
+			dirtyFlags = InternalDirtyFlags.None;
 		}
-#endif
 
 		public void Initialize( int endPointsCount )
 		{
@@ -225,11 +427,14 @@ namespace BezierSolution
 				return;
 			}
 
-			Refresh();
+			// Destroy current end points
+			endPoints.Clear();
+			GetComponentsInChildren( endPoints );
 
 			for( int i = endPoints.Count - 1; i >= 0; i-- )
 				DestroyImmediate( endPoints[i].gameObject );
 
+			// Create new end points
 			endPoints.Clear();
 
 			for( int i = 0; i < endPointsCount; i++ )
@@ -243,17 +448,13 @@ namespace BezierSolution
 			endPoints.Clear();
 			GetComponentsInChildren( endPoints );
 
-			gizmoSmoothness = gizmoSmoothness; // Recalculate gizmoStep
-
-#if UNITY_EDITOR
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
-				endPoints[i].Internal_Spline = this;
-				endPoints[i].Internal_Index = i;
+				endPoints[i].spline = this;
+				endPoints[i].index = i;
 			}
 
-			Internal_IsDirty = true;
-#endif
+			CheckDirty();
 		}
 
 		public BezierPoint InsertNewPointAt( int index )
@@ -266,6 +467,7 @@ namespace BezierSolution
 
 			int prevCount = endPoints.Count;
 			BezierPoint point = new GameObject( "Point" ).AddComponent<BezierPoint>();
+			point.spline = this;
 
 			Transform parent = endPoints.Count == 0 ? transform : ( index == 0 ? endPoints[0].transform.parent : endPoints[index - 1].transform.parent );
 			int siblingIndex = index == 0 ? 0 : endPoints[index - 1].transform.GetSiblingIndex() + 1;
@@ -274,6 +476,11 @@ namespace BezierSolution
 
 			if( endPoints.Count == prevCount ) // If spline isn't automatically Refresh()'ed
 				endPoints.Insert( index, point );
+
+			for( int i = index; i < endPoints.Count; i++ )
+				endPoints[i].index = i;
+
+			dirtyFlags |= InternalDirtyFlags.All;
 
 			return point;
 		}
@@ -309,7 +516,12 @@ namespace BezierSolution
 			BezierPoint point = endPoints[index];
 			endPoints.RemoveAt( index );
 
+			for( int i = index; i < endPoints.Count; i++ )
+				endPoints[i].index = i;
+
 			DestroyImmediate( point.gameObject );
+
+			dirtyFlags |= InternalDirtyFlags.All;
 		}
 
 		public void SwapPointsAt( int index1, int index2 )
@@ -335,6 +547,9 @@ namespace BezierSolution
 			endPoints[index1] = point2;
 			endPoints[index2] = point1;
 
+			point1.index = index2;
+			point2.index = index1;
+
 			if( point1Parent != point2Parent )
 			{
 				point1.transform.SetParent( point2Parent, true );
@@ -344,17 +559,15 @@ namespace BezierSolution
 			point1.transform.SetSiblingIndex( point2SiblingIndex );
 			point2.transform.SetSiblingIndex( point1SiblingIndex );
 
-#if UNITY_EDITOR
-			Refresh();
-#endif
+			dirtyFlags |= InternalDirtyFlags.All;
 		}
 
 		public void ChangePointIndex( int previousIndex, int newIndex )
 		{
-			Internal_ChangePointIndex( previousIndex, newIndex, null );
+			ChangePointIndex( previousIndex, newIndex, null );
 		}
 
-		internal void Internal_ChangePointIndex( int previousIndex, int newIndex, string undo )
+		internal void ChangePointIndex( int previousIndex, int newIndex, string undo )
 		{
 			if( previousIndex == newIndex )
 				return;
@@ -413,19 +626,15 @@ namespace BezierSolution
 			else
 				point1.transform.SetSiblingIndex( point2.transform.GetSiblingIndex() );
 
-#if UNITY_EDITOR
-			Refresh();
-#endif
-		}
+			for( int i = 0; i < endPoints.Count; i++ )
+				endPoints[i].index = i;
 
-		public int IndexOf( BezierPoint point )
-		{
-			return endPoints.IndexOf( point );
+			dirtyFlags |= InternalDirtyFlags.All;
 		}
 
 		public Vector3 GetPoint( float normalizedT )
 		{
-			if( !loop )
+			if( !m_loop )
 			{
 				if( normalizedT <= 0f )
 					return endPoints[0].position;
@@ -434,13 +643,15 @@ namespace BezierSolution
 			}
 			else
 			{
+				// 2nd conditions isn't 'else if' because in rare occasions, floating point precision issues may arise; e.g. for normalizedT = -0.0000000149,
+				// incrementing the value by 1 results in perfect 1.0000000000 with no mantissa
 				if( normalizedT < 0f )
 					normalizedT += 1f;
-				else if( normalizedT >= 1f )
+				if( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
-			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
 			BezierPoint startPoint, endPoint;
 
@@ -464,7 +675,7 @@ namespace BezierSolution
 
 		public Vector3 GetTangent( float normalizedT )
 		{
-			if( !loop )
+			if( !m_loop )
 			{
 				if( normalizedT <= 0f )
 					return 3f * ( endPoints[0].followingControlPointPosition - endPoints[0].position );
@@ -478,11 +689,11 @@ namespace BezierSolution
 			{
 				if( normalizedT < 0f )
 					normalizedT += 1f;
-				else if( normalizedT >= 1f )
+				if( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
-			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
 			BezierPoint startPoint, endPoint;
 
@@ -505,7 +716,7 @@ namespace BezierSolution
 
 		public Vector3 GetNormal( float normalizedT )
 		{
-			if( !loop )
+			if( !m_loop )
 			{
 				if( normalizedT <= 0f )
 					return endPoints[0].normal;
@@ -516,11 +727,11 @@ namespace BezierSolution
 			{
 				if( normalizedT < 0f )
 					normalizedT += 1f;
-				else if( normalizedT >= 1f )
+				if( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
-			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
 			int startIndex = (int) t;
 			int endIndex = startIndex + 1;
@@ -552,7 +763,7 @@ namespace BezierSolution
 
 		public BezierPoint.ExtraData GetExtraData( float normalizedT, ExtraDataLerpFunction lerpFunction )
 		{
-			if( !loop )
+			if( !m_loop )
 			{
 				if( normalizedT <= 0f )
 					return endPoints[0].extraData;
@@ -563,11 +774,11 @@ namespace BezierSolution
 			{
 				if( normalizedT < 0f )
 					normalizedT += 1f;
-				else if( normalizedT >= 1f )
+				if( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
-			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
 			int startIndex = (int) t;
 			int endIndex = startIndex + 1;
@@ -609,24 +820,24 @@ namespace BezierSolution
 			return length;
 		}
 
-		public PointIndexTuple GetNearestPointIndicesTo( float normalizedT )
+		public Segment GetSegmentAt( float normalizedT )
 		{
-			if( !loop )
+			if( !m_loop )
 			{
 				if( normalizedT <= 0f )
-					return new PointIndexTuple( this, 0, 1, 0f );
+					return new Segment( endPoints[0], endPoints[1], 0f );
 				else if( normalizedT >= 1f )
-					return new PointIndexTuple( this, endPoints.Count - 1, endPoints.Count - 1, 1f );
+					return new Segment( endPoints[endPoints.Count - 2], endPoints[endPoints.Count - 1], 1f );
 			}
 			else
 			{
 				if( normalizedT < 0f )
 					normalizedT += 1f;
-				else if( normalizedT >= 1f )
+				if( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
-			float t = normalizedT * ( loop ? endPoints.Count : ( endPoints.Count - 1 ) );
+			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
 			int startIndex = (int) t;
 			int endIndex = startIndex + 1;
@@ -634,7 +845,13 @@ namespace BezierSolution
 			if( endIndex == endPoints.Count )
 				endIndex = 0;
 
-			return new PointIndexTuple( this, startIndex, endIndex, t - startIndex );
+			return new Segment( endPoints[startIndex], endPoints[endIndex], t - startIndex );
+		}
+
+		[System.Obsolete( "GetNearestPointIndicesTo is renamed to GetSegmentAt" )]
+		public Segment GetNearestPointIndicesTo( float normalizedT )
+		{
+			return GetSegmentAt( normalizedT );
 		}
 
 		public Vector3 FindNearestPointTo( Vector3 worldPos, float accuracy = 100f )
@@ -714,7 +931,7 @@ namespace BezierSolution
 		// Credit: https://gamedev.stackexchange.com/a/27138
 		public Vector3 MoveAlongSpline( ref float normalizedT, float deltaMovement, int accuracy = 3 )
 		{
-			float constant = deltaMovement / ( ( loop ? endPoints.Count : ( endPoints.Count - 1 ) ) * accuracy );
+			float constant = deltaMovement / ( ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) ) * accuracy );
 			for( int i = 0; i < accuracy; i++ )
 				normalizedT += constant / GetTangent( normalizedT ).magnitude;
 
@@ -724,12 +941,13 @@ namespace BezierSolution
 		public void ConstructLinearPath()
 		{
 			for( int i = 0; i < endPoints.Count; i++ )
+			{
+				endPoints[i].handleMode = BezierPoint.HandleMode.Free;
 				endPoints[i].RefreshIfChanged();
+			}
 
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
-				endPoints[i].handleMode = BezierPoint.HandleMode.Free;
-
 				if( i < endPoints.Count - 1 )
 				{
 					Vector3 midPoint = ( endPoints[i].position + endPoints[i + 1].position ) * 0.5f;
@@ -764,7 +982,7 @@ namespace BezierSolution
 			}
 
 			Vector3[] rhs;
-			if( loop )
+			if( m_loop )
 				rhs = new Vector3[n + 1];
 			else
 				rhs = new Vector3[n];
@@ -774,7 +992,7 @@ namespace BezierSolution
 
 			rhs[0] = endPoints[0].position + 2 * endPoints[1].position;
 
-			if( !loop )
+			if( !m_loop )
 				rhs[n - 1] = ( 8 * endPoints[n - 1].position + endPoints[n].position ) * 0.5f;
 			else
 			{
@@ -805,7 +1023,7 @@ namespace BezierSolution
 				// First control point
 				endPoints[i].followingControlPointPosition = controlPoints[i];
 
-				if( loop )
+				if( m_loop )
 					endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - controlPoints[i + 1];
 				else
 				{
@@ -817,7 +1035,7 @@ namespace BezierSolution
 				}
 			}
 
-			if( loop )
+			if( m_loop )
 			{
 				float controlPointDistance = Vector3.Distance( endPoints[0].followingControlPointPosition, endPoints[0].position );
 				Vector3 direction = Vector3.Normalize( endPoints[n].position - endPoints[1].position );
@@ -837,7 +1055,10 @@ namespace BezierSolution
 			}
 
 			for( int i = 0; i < endPoints.Count; i++ )
+			{
+				endPoints[i].handleMode = BezierPoint.HandleMode.Mirrored;
 				endPoints[i].RefreshIfChanged();
+			}
 
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
@@ -845,7 +1066,7 @@ namespace BezierSolution
 
 				if( i == 0 )
 				{
-					if( loop )
+					if( m_loop )
 						pMinus1 = endPoints[endPoints.Count - 1].position;
 					else
 						pMinus1 = endPoints[0].position;
@@ -853,7 +1074,7 @@ namespace BezierSolution
 				else
 					pMinus1 = endPoints[i - 1].position;
 
-				if( loop )
+				if( m_loop )
 				{
 					p1 = endPoints[( i + 1 ) % endPoints.Count].position;
 					p2 = endPoints[( i + 2 ) % endPoints.Count].position;
@@ -878,11 +1099,10 @@ namespace BezierSolution
 				}
 
 				endPoints[i].followingControlPointPosition = endPoints[i].position + ( p1 - pMinus1 ) / 6f;
-				endPoints[i].handleMode = BezierPoint.HandleMode.Mirrored;
 
 				if( i < endPoints.Count - 1 )
 					endPoints[i + 1].precedingControlPointPosition = p1 - ( p2 - endPoints[i].position ) / 6f;
-				else if( loop )
+				else if( m_loop )
 					endPoints[0].precedingControlPointPosition = p1 - ( p2 - endPoints[i].position ) / 6f;
 			}
 		}
@@ -898,9 +1118,9 @@ namespace BezierSolution
 			float _1OverSmoothness = 1f / smoothness;
 
 			// Calculate initial point's normal using Frenet formula
-			PointIndexTuple tuple = new PointIndexTuple( this, 0, 1, 0f );
-			Vector3 tangent1 = tuple.GetTangent( 0f ).normalized;
-			Vector3 tangent2 = tuple.GetTangent( 0.025f ).normalized;
+			Segment segment = new Segment( endPoints[0], endPoints[1], 0f );
+			Vector3 tangent1 = segment.GetTangent( 0f ).normalized;
+			Vector3 tangent2 = segment.GetTangent( 0.025f ).normalized;
 			Vector3 cross = Vector3.Cross( tangent2, tangent1 ).normalized;
 			if( Mathf.Approximately( cross.sqrMagnitude, 0f ) ) // This is not a curved spline but rather a straight line
 				cross = Vector3.Cross( tangent2, ( tangent2.x != 0f || tangent2.z != 0f ) ? Vector3.up : Vector3.forward );
@@ -911,16 +1131,16 @@ namespace BezierSolution
 			for( int i = 0; i < endPoints.Count; i++ )
 			{
 				if( i < endPoints.Count - 1 )
-					tuple = new PointIndexTuple( this, i, i + 1, 0f );
-				else if( loop )
-					tuple = new PointIndexTuple( this, i, 0, 0f );
+					segment = new Segment( endPoints[i], endPoints[i + 1], 0f );
+				else if( m_loop )
+					segment = new Segment( endPoints[i], endPoints[0], 0f );
 				else
 					break;
 
 				Vector3 prevNormal = endPoints[i].normal;
 				for( int j = 1; j <= smoothness; j++ )
 				{
-					Vector3 tangent = tuple.GetTangent( j * _1OverSmoothness ).normalized;
+					Vector3 tangent = segment.GetTangent( j * _1OverSmoothness ).normalized;
 					prevNormal = Vector3.Cross( tangent, Vector3.Cross( prevNormal, tangent ).normalized ).normalized;
 				}
 
@@ -939,15 +1159,94 @@ namespace BezierSolution
 				else if( !Mathf.Approximately( rotateAngle, 0f ) )
 				{
 					if( i < endPoints.Count - 1 )
-						tuple = new PointIndexTuple( this, i, i + 1, 0f );
-					else if( loop )
-						tuple = new PointIndexTuple( this, i, 0, 0f );
+						segment = new Segment( endPoints[i], endPoints[i + 1], 0f );
+					else if( m_loop )
+						segment = new Segment( endPoints[i], endPoints[0], 0f );
 					else
-						tuple = new PointIndexTuple( this, i - 1, i, 1f );
+						segment = new Segment( endPoints[i - 1], endPoints[i], 1f );
 
-					endPoints[i].normal = Quaternion.AngleAxis( rotateAngle, tuple.GetTangent() ) * endPoints[i].normal;
+					endPoints[i].normal = Quaternion.AngleAxis( rotateAngle, segment.GetTangent() ) * endPoints[i].normal;
 				}
 			}
+		}
+
+		// Credit: https://www.youtube.com/watch?v=d9k97JemYbM
+		public EvenlySpacedPointsHolder CalculateEvenlySpacedPoints( float resolution = 10f, float accuracy = 3f )
+		{
+			int segmentCount = m_loop ? endPoints.Count : ( endPoints.Count - 1 );
+			List<float> evenlySpacedPoints = new List<float>( segmentCount + Mathf.CeilToInt( segmentCount * resolution * 1.25f ) );
+
+			// Calculate each spline segment's approximate length and store it temporarily in the list so that
+			// we won't have to calculate the same value twice in the 2nd loop. We'll remove these length values
+			// from the list at the end of the operation
+			float estimatedSplineLength = 0f;
+			for( int i = 0; i < segmentCount; i++ )
+			{
+				BezierPoint point1 = endPoints[i];
+				BezierPoint point2 = ( i < endPoints.Count - 1 ) ? endPoints[i + 1] : endPoints[0];
+
+				float controlNetLength = Vector3.Distance( point1.position, point1.followingControlPointPosition ) + Vector3.Distance( point1.followingControlPointPosition, point2.precedingControlPointPosition ) + Vector3.Distance( point2.precedingControlPointPosition, point2.position );
+				float estimatedCurveLength = Vector3.Distance( point1.position, point2.position ) + controlNetLength * 0.5f;
+
+				estimatedSplineLength += estimatedCurveLength;
+				evenlySpacedPoints.Add( estimatedCurveLength );
+			}
+
+			float averageSegmentLength = estimatedSplineLength / segmentCount;
+			float distanceBetweenEvenlySpacedPoints = averageSegmentLength / resolution;
+			float remainingDistanceToEvenlySpacedPoint = distanceBetweenEvenlySpacedPoints;
+			float totalLength = 0f;
+
+			Vector3 previousPoint = endPoints[0].position;
+			evenlySpacedPoints.Add( 0f );
+
+			for( int i = 0; i < segmentCount; i++ )
+			{
+				Segment segment = new Segment( endPoints[i], ( i < endPoints.Count - 1 ) ? endPoints[i + 1] : endPoints[0], 0f );
+
+				float estimatedCurveLength = evenlySpacedPoints[i];
+				float tMultiplier = 1f / ( resolution * accuracy * ( estimatedCurveLength / averageSegmentLength ) );
+				float t = 0, previousT = 0f;
+				while( t < 1f )
+				{
+					t += tMultiplier;
+					if( t > 1f )
+						t = 1f;
+
+					Vector3 point = segment.GetPoint( t );
+					float distanceToPreviousPoint = Vector3.Distance( previousPoint, point );
+					while( distanceToPreviousPoint >= remainingDistanceToEvenlySpacedPoint )
+					{
+						float newEvenlySpacedPointLocalT = previousT + ( t - previousT ) * ( remainingDistanceToEvenlySpacedPoint / distanceToPreviousPoint );
+						evenlySpacedPoints.Add( segment.GetNormalizedT( newEvenlySpacedPointLocalT ) );
+
+						//distanceToPreviousPoint -= remainingDistanceToEvenlySpacedPoint;
+						distanceToPreviousPoint = Vector3.Distance( segment.GetPoint( newEvenlySpacedPointLocalT ), point );
+						remainingDistanceToEvenlySpacedPoint = distanceBetweenEvenlySpacedPoints;
+						totalLength += distanceBetweenEvenlySpacedPoints;
+						previousT = newEvenlySpacedPointLocalT;
+					}
+
+					remainingDistanceToEvenlySpacedPoint -= distanceToPreviousPoint;
+					previousT = t;
+					previousPoint = point;
+				}
+			}
+
+			totalLength += distanceBetweenEvenlySpacedPoints - remainingDistanceToEvenlySpacedPoint;
+
+			// If the last calculated evenly spaced point is too close to the final point (t=1f), remove it.
+			// The space between last 3 evenly spaced points won't really be even but the difference will be
+			// negligible when resolution isn't too small
+			if( remainingDistanceToEvenlySpacedPoint >= distanceBetweenEvenlySpacedPoints * 0.5f )
+				evenlySpacedPoints.RemoveAt( evenlySpacedPoints.Count - 1 );
+
+			evenlySpacedPoints.Add( 1f );
+
+			// Remove spline segment lengths from list (which were temporarily stored there)
+			evenlySpacedPoints.RemoveRange( 0, segmentCount );
+
+			return new EvenlySpacedPointsHolder( this, totalLength, evenlySpacedPoints.ToArray() );
 		}
 
 		private float AccuracyToStepSize( float accuracy )
@@ -982,6 +1281,7 @@ namespace BezierSolution
 
 			Vector3 lastPos = endPoints[0].position;
 
+			float gizmoStep = 1f / ( endPoints.Count * Mathf.Clamp( gizmoSmoothness, 1, 30 ) );
 			for( float i = gizmoStep; i < 1f; i += gizmoStep )
 			{
 				GL.Vertex3( lastPos.x, lastPos.y, lastPos.z );

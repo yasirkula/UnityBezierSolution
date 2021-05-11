@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace BezierSolution
 {
+	[AddComponentMenu( "Bezier Solution/Bezier Walker Locomotion" )]
 	public class BezierWalkerLocomotion : BezierWalker
 	{
 		public BezierWalker walker;
@@ -17,12 +18,11 @@ namespace BezierSolution
 		public List<float> TailDistances { get { return tailObjectDistances; } }
 #pragma warning restore 0649
 
+		public bool highQuality = true; // true by default because when it is set to false, tail objects can jitter too much
+
 		public float movementLerpModifier = 10f;
 		public float rotationLerpModifier = 10f;
 
-		[System.Obsolete( "Use lookAt instead", true )]
-		[System.NonSerialized]
-		public bool lookForward = true;
 		public LookAtMode lookAt = LookAtMode.Forward;
 
 		public override BezierSpline Spline { get { return walker.Spline; } }
@@ -55,38 +55,40 @@ namespace BezierSolution
 
 		public override void Execute( float deltaTime )
 		{
-			float t = NormalizedT;
 			BezierSpline spline = Spline;
+			float t = highQuality ? spline.evenlySpacedPoints.GetPercentageAtNormalizedT( NormalizedT ) : NormalizedT;
 			bool forward = MovingForward;
 
 			for( int i = 0; i < tailObjects.Count; i++ )
 			{
 				Transform tailObject = tailObjects[i];
-
-				if( forward )
+				Vector3 tailPosition;
+				float tailNormalizedT;
+				if( highQuality )
 				{
-					tailObject.position = Vector3.Lerp( tailObject.position, spline.MoveAlongSpline( ref t, -tailObjectDistances[i] ), movementLerpModifier * deltaTime );
+					if( forward )
+						t -= tailObjectDistances[i] / spline.evenlySpacedPoints.splineLength;
+					else
+						t += tailObjectDistances[i] / spline.evenlySpacedPoints.splineLength;
 
-					if( lookAt == LookAtMode.Forward )
-					{
-						BezierSpline.PointIndexTuple tuple = spline.GetNearestPointIndicesTo( t );
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( tuple.GetTangent(), tuple.GetNormal() ), rotationLerpModifier * deltaTime );
-					}
-					else if( lookAt == LookAtMode.SplineExtraData )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
+					tailNormalizedT = spline.evenlySpacedPoints.GetNormalizedTAtPercentage( t );
+					tailPosition = spline.GetPoint( tailNormalizedT );
 				}
 				else
 				{
-					tailObject.position = Vector3.Lerp( tailObject.position, spline.MoveAlongSpline( ref t, tailObjectDistances[i] ), movementLerpModifier * deltaTime );
-
-					if( lookAt == LookAtMode.Forward )
-					{
-						BezierSpline.PointIndexTuple tuple = spline.GetNearestPointIndicesTo( t );
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( -tuple.GetTangent(), tuple.GetNormal() ), rotationLerpModifier * deltaTime );
-					}
-					else if( lookAt == LookAtMode.SplineExtraData )
-						tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( t, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
+					tailPosition = spline.MoveAlongSpline( ref t, forward ? -tailObjectDistances[i] : tailObjectDistances[i] );
+					tailNormalizedT = t;
 				}
+
+				tailObject.position = Vector3.Lerp( tailObject.position, tailPosition, movementLerpModifier * deltaTime );
+
+				if( lookAt == LookAtMode.Forward )
+				{
+					BezierSpline.Segment segment = spline.GetSegmentAt( tailNormalizedT );
+					tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( forward ? segment.GetTangent() : -segment.GetTangent(), segment.GetNormal() ), rotationLerpModifier * deltaTime );
+				}
+				else if( lookAt == LookAtMode.SplineExtraData )
+					tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( tailNormalizedT, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
 			}
 		}
 

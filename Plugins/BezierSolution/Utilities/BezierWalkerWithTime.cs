@@ -3,6 +3,7 @@ using UnityEngine.Events;
 
 namespace BezierSolution
 {
+	[AddComponentMenu( "Bezier Solution/Bezier Walker With Time" )]
 	public class BezierWalkerWithTime : BezierWalker
 	{
 		public BezierSpline spline;
@@ -12,6 +13,8 @@ namespace BezierSolution
 		[SerializeField]
 		[Range( 0f, 1f )]
 		private float m_normalizedT = 0f;
+
+		public bool highQuality = false;
 
 		public override BezierSpline Spline { get { return spline; } }
 
@@ -24,9 +27,6 @@ namespace BezierSolution
 		public float movementLerpModifier = 10f;
 		public float rotationLerpModifier = 10f;
 
-		[System.Obsolete( "Use lookAt instead", true )]
-		[System.NonSerialized]
-		public bool lookForward = true;
 		public LookAtMode lookAt = LookAtMode.Forward;
 
 		private bool isGoingForward = true;
@@ -43,21 +43,23 @@ namespace BezierSolution
 
 		public override void Execute( float deltaTime )
 		{
-			transform.position = Vector3.Lerp( transform.position, spline.GetPoint( m_normalizedT ), movementLerpModifier * deltaTime );
+			float _normalizedT = highQuality ? spline.evenlySpacedPoints.GetNormalizedTAtPercentage( m_normalizedT ) : m_normalizedT;
+
+			transform.position = Vector3.Lerp( transform.position, spline.GetPoint( _normalizedT ), movementLerpModifier * deltaTime );
 
 			if( lookAt == LookAtMode.Forward )
 			{
-				BezierSpline.PointIndexTuple tuple = spline.GetNearestPointIndicesTo( m_normalizedT );
+				BezierSpline.Segment segment = spline.GetSegmentAt( _normalizedT );
 				Quaternion targetRotation;
 				if( isGoingForward )
-					targetRotation = Quaternion.LookRotation( tuple.GetTangent(), tuple.GetNormal() );
+					targetRotation = Quaternion.LookRotation( segment.GetTangent(), segment.GetNormal() );
 				else
-					targetRotation = Quaternion.LookRotation( -tuple.GetTangent(), tuple.GetNormal() );
+					targetRotation = Quaternion.LookRotation( -segment.GetTangent(), segment.GetNormal() );
 
 				transform.rotation = Quaternion.Lerp( transform.rotation, targetRotation, rotationLerpModifier * deltaTime );
 			}
 			else if( lookAt == LookAtMode.SplineExtraData )
-				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( m_normalizedT, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
+				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( _normalizedT, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
 
 			if( isGoingForward )
 			{

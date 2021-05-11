@@ -3,6 +3,8 @@ using UnityEngine;
 
 namespace BezierSolution
 {
+	[AddComponentMenu( "Bezier Solution/Particles Follow Bezier" )]
+	[RequireComponent( typeof( ParticleSystem ) )]
 	[ExecuteInEditMode]
 	public class ParticlesFollowBezier : MonoBehaviour
 	{
@@ -58,6 +60,7 @@ namespace BezierSolution
 			bool isLocalSpace = cachedMainModule.simulationSpace != ParticleSystemSimulationSpace.World;
 			int aliveParticles = cachedPS.GetParticles( particles );
 
+			Vector3 initialPoint = spline.GetPoint( 0f );
 			if( followMode == FollowMode.Relaxed )
 			{
 				if( particleData == null )
@@ -70,8 +73,8 @@ namespace BezierSolution
 				{
 					Vector4 particleDat = particleData[i];
 					Vector3 point = spline.GetPoint( 1f - ( particles[i].remainingLifetime / particles[i].startLifetime ) );
-					if( isLocalSpace )
-						point = cachedTransform.InverseTransformPoint( point );
+					if( !isLocalSpace )
+						point = cachedTransform.TransformPoint( point - initialPoint );
 
 					// Move particles alongside the spline
 					if( particleDat.w != 0f )
@@ -86,12 +89,11 @@ namespace BezierSolution
 			}
 			else
 			{
-				Vector3 deltaPosition = cachedTransform.position - spline.GetPoint( 0f );
 				for( int i = 0; i < aliveParticles; i++ )
 				{
-					Vector3 point = spline.GetPoint( 1f - ( particles[i].remainingLifetime / particles[i].startLifetime ) ) + deltaPosition;
-					if( isLocalSpace )
-						point = cachedTransform.InverseTransformPoint( point );
+					Vector3 point = spline.GetPoint( 1f - ( particles[i].remainingLifetime / particles[i].startLifetime ) ) - initialPoint;
+					if( !isLocalSpace )
+						point = cachedTransform.TransformPoint( point );
 
 					particles[i].position = point;
 				}

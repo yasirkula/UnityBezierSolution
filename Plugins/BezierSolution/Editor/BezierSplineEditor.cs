@@ -7,7 +7,9 @@ namespace BezierSolution.Extras
 	[CanEditMultipleObjects]
 	public class BezierSplineEditor : Editor
 	{
-		private BezierSpline[] allSplines;
+		internal BezierSpline[] allSplines;
+
+		public static BezierSplineEditor ActiveEditor { get; private set; }
 
 		private void OnEnable()
 		{
@@ -22,12 +24,16 @@ namespace BezierSolution.Extras
 				allSplines[i] = spline;
 			}
 
+			ActiveEditor = this;
+
 			Undo.undoRedoPerformed -= OnUndoRedo;
 			Undo.undoRedoPerformed += OnUndoRedo;
 		}
 
 		private void OnDisable()
 		{
+			ActiveEditor = null;
+
 			Undo.undoRedoPerformed -= OnUndoRedo;
 		}
 
@@ -50,7 +56,10 @@ namespace BezierSolution.Extras
 			for( int i = 0; i < allSplines.Length; i++ )
 			{
 				if( allSplines[i] )
+				{
+					allSplines[i].dirtyFlags |= InternalDirtyFlags.All;
 					allSplines[i].Refresh();
+				}
 			}
 
 			Repaint();
