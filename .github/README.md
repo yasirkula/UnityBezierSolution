@@ -38,6 +38,10 @@ The user interface for the spline editor should be pretty self-explanatory with 
 
 ![inspector](Images/BezierSpline.png)
 
+When **Quick Edit Mode** is enabled, new points can quickly be added/inserted to the spline and the existing points can be dragged around/snapped to the scene geometry.
+
+To reverse the order of the end points in a spline, you can right click the BezierSpline component and click the *Invert Spline* button.
+
 You can tweak the Scene view gizmos via *Project Settings/yasirkula/Bezier Solution* page (on older versions, this menu is located at *Preferences* window).
 
 ![gizmo-settings](Images/GizmoSettings.png)
@@ -112,6 +116,8 @@ If auto calculated normals don't look quite right despite modifying the "normalA
 
 You can register to the spline's **onSplineChanged** event to get notified when some of its properties have changed. This event has the following signature: `delegate void SplineChangeDelegate( BezierSpline spline, DirtyFlags dirtyFlags )`. **DirtyFlags** is an enum flag, meaning that it can have one or more of these values: **SplineShapeChanged**, **NormalsChanged** and/or **ExtraDataChanged**. *SplineShapeChanged* flag means that either the spline's Transform values have changed or some of its end points' Transform values have changed (changing control points may also trigger this flag). *NormalsChanged* flag means that normals of some of the end points have changed and *ExtraDataChanged* flag means that extraDatas of some of the end points have changed.
 
+BezierSpline also has a **version** property which is automatically increased whenever the spline's properties change.
+
 **NOTE:** onSplineChanged event is usually invoked in *LateUpdate*. Before it is invoked, *autoConstructMode* and *autoCalculateNormals* properties' values are checked and the relevant auto construction/calculation functions are executed if necessary.
 
 ## UTILITY FUNCTIONS
@@ -148,11 +154,11 @@ Calculates the approximate length of a segment of the spline. To calculate the l
 
 Returns the two end points that are closest to *normalizedT*. The *Segment* struct also holds a *localT* value in range \[0,1\], which can be used to interpolate between the properties of these two end points. You can also call the `GetPoint()`, `GetTangent()`, `GetNormal()` and `GetExtraData()` functions of this struct and the returned values will be calculated as if the spline consisted of only these two end points.
 
-- `Vector3 FindNearestPointTo( Vector3 worldPos, out float normalizedT, float accuracy = 100f )`
+- `Vector3 FindNearestPointTo( Vector3 worldPos, out float normalizedT, float accuracy = 100f, int secondPassIterations = 7, float secondPassExtents = 0.025f )`
 
-Finds the nearest point on the spline to any given point in 3D space. The normalizedT parameter is optional and it returns the parameter *t* corresponding to the resulting point. To find the nearest point, the spline is divided into "accuracy" points and the nearest point is selected. Thus, the result will not be 100% accurate but will be good enough for casual use-cases.
+Finds the nearest point on the spline to any given point in 3D space. The normalizedT parameter is optional and it returns the parameter *t* corresponding to the resulting point. To find the nearest point, the spline is divided into "accuracy" points and the nearest point is selected. Then, a binary search is performed in "secondPassIterations" steps in range `[normalizedT-secondPassExtents, normalizedT+secondPassExtents]` to fine-tune the result.
 
-- `Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, out Vector3 pointOnLine, out float normalizedT, float accuracy = 100f )`
+- `Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, out Vector3 pointOnLine, out float normalizedT, float accuracy = 100f, int secondPassIterations = 7, float secondPassExtents = 0.025f )`
 
 Finds the nearest point on the spline to the given line in 3D space. The pointOnLine and normalizedT parameters are optional.
 
@@ -162,17 +168,23 @@ Moves a point (normalizedT) on the spline deltaMovement units ahead and returns 
 
 - `EvenlySpacedPointsHolder CalculateEvenlySpacedPoints( float resolution = 10f, float accuracy = 3f )`
 
-Finds uniformly distributed points on the spline and returns a lookup table. The lookup table isn't refreshed automatically, so it may be invalidated when the spline is modified. This function's resolution parameter determines approximately how many points will be calculated per each segment of the spline and accuracy determines how accurate the uniform spacing will be. The default values should work well in most cases.
+Finds uniformly distributed points along the spline and returns a lookup table. The lookup table isn't refreshed automatically, so it may be invalidated when the spline is modified. This function's *resolution* parameter determines approximately how many points will be calculated per each segment of the spline and accuracy determines how accurate the uniform spacing will be. The default values should work well in most cases.
 
 **Food For Thought**: BezierSpline has an **evenlySpacedPoints** property which is a shorthand for `CalculateEvenlySpacedPoints()`. Its value is cached and won't be recalculated unless the spline is modified.
 
-**EvenlySpacedPointsHolder** struct has *spline*, *splineLength* and *uniformNormalizedTs* variables. In addition, it has the following convenience functions:
+*EvenlySpacedPointsHolder* class has *spline*, *splineLength* and *uniformNormalizedTs* variables. In addition, it has the following convenience functions:
 
-**GetNormalizedTAtPercentage:** converts a percentage to normalizedT value, i.e. if you enter 0.5f as parameter, it will return the normalizedT value of the spline that corresponds to its actual middle point. 
+- **GetNormalizedTAtPercentage:** converts a percentage to normalizedT value, i.e. if you enter 0.5f as parameter, it will return the normalizedT value of the spline that corresponds to its actual middle point. 
+- **GetNormalizedTAtDistance:** finds the normalizedT value that is specified units away from the spline's starting point.
+- **GetPercentageAtNormalizedT:** inverse of *GetNormalizedTAtPercentage*.
 
-**GetNormalizedTAtDistance:** finds the normalizedT value that is specified units away from the spline's starting point.
+- `PointCache GeneratePointCache( EvenlySpacedPointsHolder lookupTable, ExtraDataLerpFunction extraDataLerpFunction, PointCacheFlags cachedData = PointCacheFlags.All, int resolution = 100 )`
 
-**GetPercentageAtNormalizedT:** inverse of *GetNormalizedTAtPercentage*.
+Returns a cache of data for uniformly distributed points along the spline. The cache isn't refreshed automatically, so it may be invalidated when the spline is modified. This function's *resolution* parameter determines how many uniformly distributed points the cache will have. To determine which data should be cached, *cachedData* parameter is used. *PointCacheFlags* is an enum flag, meaning that it can have one or more of these values: **Positions**, **Normals**, **Tangents**, **Bitangents** and/or **ExtraDatas**. *lookupTable* is an optional parameter and, by default, spline's *evenlySpacedPoints* is used. *extraDataLerpFunction* is also an optional parameter and is used only when PointCacheFlags.ExtraDatas is included in cachedData.
+
+**Food For Thought**: BezierSpline has a **pointCache** property which is a shorthand for `GeneratePointCache()`. Its value is cached and won't be recalculated unless the spline is modified.
+
+*PointCache* class has *positions*, *normals*, *tangents*, *bitangents*, *extraDatas* and *loop* variables (loop determines whether or not the spline had its *loop* property set to true while calculating the cache). In addition, it has the following functions: *GetPoint*, *GetNormal*, *GetTangent*, *GetBitangent* and *GetExtraData* (if the required data for a function wasn't included in PointCacheFlags, then the function will throw an exception). If a spline is rarely modified at runtime, then point cache can be used to get points, tangents, normals, etc. along the spline in a cheaper and uniform way.
 
 ## OTHER COMPONENTS
 

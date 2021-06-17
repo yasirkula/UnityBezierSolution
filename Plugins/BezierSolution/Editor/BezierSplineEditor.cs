@@ -26,6 +26,14 @@ namespace BezierSolution.Extras
 
 			ActiveEditor = this;
 
+			if( BezierUtils.QuickEditSplineMode )
+			{
+				Tools.hidden = true;
+
+				EditorApplication.update -= SceneView.RepaintAll;
+				EditorApplication.update += SceneView.RepaintAll;
+			}
+
 			Undo.undoRedoPerformed -= OnUndoRedo;
 			Undo.undoRedoPerformed += OnUndoRedo;
 		}
@@ -33,8 +41,10 @@ namespace BezierSolution.Extras
 		private void OnDisable()
 		{
 			ActiveEditor = null;
+			Tools.hidden = false;
 
 			Undo.undoRedoPerformed -= OnUndoRedo;
+			EditorApplication.update -= SceneView.RepaintAll;
 		}
 
 		private void OnSceneGUI()
@@ -44,6 +54,18 @@ namespace BezierSolution.Extras
 
 			for( int i = 0; i < spline.Count; i++ )
 				BezierUtils.DrawBezierPoint( spline[i], i + 1, false );
+
+			if( BezierUtils.QuickEditSplineMode )
+			{
+				// Execute quick edit mode's scene GUI only once (otherwise things can get ugly when multiple splines are selected)
+				if( spline == allSplines[0] )
+				{
+					BezierUtils.QuickEditModeSceneGUI( allSplines );
+					HandleUtility.AddDefaultControl( 0 );
+				}
+
+				return;
+			}
 		}
 
 		public override void OnInspectorGUI()

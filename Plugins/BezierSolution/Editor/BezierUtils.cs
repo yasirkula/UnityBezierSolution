@@ -2,11 +2,15 @@
 using UnityEngine;
 using UnityEditor;
 using Object = UnityEngine.Object;
+using System.Reflection;
 
 namespace BezierSolution.Extras
 {
 	public static class BezierUtils
 	{
+		private const string PRECEDING_CONTROL_POINT_LABEL = "  <--";
+		private const string FOLLOWING_CONTROL_POINT_LABEL = "  -->";
+
 		private static readonly Color AUTO_CONSTRUCT_SPLINE_BUTTON_COLOR = new Color( 0.65f, 1f, 0.65f );
 
 		private static readonly GUIContent LOOP_TEXT = new GUIContent( "Loop", "Connects the first end point and the last end point of the spline" );
@@ -19,16 +23,20 @@ namespace BezierSolution.Extras
 		private static readonly GUIContent CONSTRUCT_LINEAR_PATH_TEXT = new GUIContent( "Construct Linear Path", "Constructs a completely linear path (end points' Handle Mode will be set to Free)" );
 		private static readonly GUIContent AUTO_CONSTRUCT_SPLINE_TEXT = new GUIContent( "Auto Construct Spline", "Constructs a smooth path" );
 		private static readonly GUIContent AUTO_CONSTRUCT_SPLINE_2_TEXT = new GUIContent( "Auto Construct Spline 2", "Constructs a smooth path (another algorithm)" );
-		private static readonly GUIContent SHOW_CALCULATE_NORMALS_TEXT = new GUIContent( "Auto Calculate Normals", "Attempts to automatically calculate the end points' normal vectors" );
+		private static readonly GUIContent AUTO_CALCULATE_NORMALS_TEXT = new GUIContent( "Auto Calculate Normals", "Attempts to automatically calculate the end points' normal vectors" );
 		private static readonly GUIContent AUTO_CONSTRUCT_ALWAYS_TEXT = new GUIContent( "Always", "Applies this method automatically as spline's points change" );
+		private static readonly GUIContent QUICK_EDIT_MODE_TEXT = new GUIContent( "Quick Edit Mode", "Quickly add new points to the spline or snap existing points to the scene geometry" );
+		private static readonly GUIContent QUICK_EDIT_MODIFY_NORMALS_TEXT = new GUIContent( "Use Raycast Normals", "While dragging a point or adding a new point, the point's Normal vector will be set to the normal of the scene geometry under the cursor" );
+		private static readonly GUIContent QUICK_EDIT_PRESERVE_SPLINE_SHAPE_TEXT = new GUIContent( "Preserve Spline Shape", "While inserting new points along the spline, the spline's shape will be preserved but the neighboring end points' 'Handle Mode' will no longer be 'Mirrored'" );
 
 		public static readonly GUILayoutOption GL_WIDTH_45 = GUILayout.Width( 45f );
 		public static readonly GUILayoutOption GL_WIDTH_60 = GUILayout.Width( 60f );
 		public static readonly GUILayoutOption GL_WIDTH_100 = GUILayout.Width( 100f );
 		public static readonly GUILayoutOption GL_WIDTH_155 = GUILayout.Width( 155f );
 
-		private const string PRECEDING_CONTROL_POINT_LABEL = "  <--";
-		private const string FOLLOWING_CONTROL_POINT_LABEL = "  -->";
+		private static readonly MethodInfo intersectRayMeshMethod = typeof( HandleUtility ).GetMethod( "IntersectRayMesh", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static );
+
+		public static bool QuickEditSplineMode { get; private set; }
 
 		[MenuItem( "GameObject/Bezier Spline", priority = 35 )]
 		private static void NewSpline( MenuCommand command )
@@ -165,7 +173,7 @@ namespace BezierSolution.Extras
 				}
 			}
 
-			Color c = GUI.color;
+			Color c = GUI.backgroundColor;
 
 			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.loop == s2.loop );
 			EditorGUI.BeginChangeCheck();
@@ -303,13 +311,13 @@ namespace BezierSolution.Extras
 
 			EditorGUILayout.Space();
 
-			GUI.color = AUTO_CONSTRUCT_SPLINE_BUTTON_COLOR;
+			GUI.backgroundColor = AUTO_CONSTRUCT_SPLINE_BUTTON_COLOR;
 			ShowAutoConstructButton( splines, CONSTRUCT_LINEAR_PATH_TEXT, SplineAutoConstructMode.Linear );
 			ShowAutoConstructButton( splines, AUTO_CONSTRUCT_SPLINE_TEXT, SplineAutoConstructMode.Smooth1 );
 			ShowAutoConstructButton( splines, AUTO_CONSTRUCT_SPLINE_2_TEXT, SplineAutoConstructMode.Smooth2 );
 
 			GUILayout.BeginHorizontal();
-			if( GUILayout.Button( SHOW_CALCULATE_NORMALS_TEXT ) )
+			if( GUILayout.Button( AUTO_CALCULATE_NORMALS_TEXT ) )
 			{
 				for( int i = 0; i < splines.Length; i++ )
 				{
@@ -348,7 +356,45 @@ namespace BezierSolution.Extras
 			}
 			GUILayout.EndHorizontal();
 
-			GUI.color = c;
+			GUI.backgroundColor = c;
+
+			EditorGUILayout.Space();
+
+			EditorGUI.BeginChangeCheck();
+			QuickEditSplineMode = GUILayout.Toggle( QuickEditSplineMode, QUICK_EDIT_MODE_TEXT, GUI.skin.button );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				EditorApplication.update -= SceneView.RepaintAll;
+
+				if( QuickEditSplineMode )
+				{
+					Tools.hidden = true;
+					EditorApplication.update += SceneView.RepaintAll;
+				}
+				else if( BezierSplineEditor.ActiveEditor )
+					Tools.hidden = false;
+
+				SceneView.RepaintAll();
+			}
+
+			if( QuickEditSplineMode )
+			{
+				EditorGUILayout.HelpBox( "- Dragging a point: snaps the dragged point to the scene geometry under the cursor\n- CTRL+Left Click: adds a new point to the end of the spline\n- CTRL+Shift+Left Click: inserts a new point along the spline\n- Shift+Left Click: deletes clicked point", MessageType.Info );
+
+				if( Array.Find( splines, ( s ) => !s.autoCalculateNormals ) )
+				{
+					EditorGUI.indentLevel++;
+					BezierSettings.QuickEditSplineModifyNormals = EditorGUILayout.Toggle( QUICK_EDIT_MODIFY_NORMALS_TEXT, BezierSettings.QuickEditSplineModifyNormals );
+					EditorGUI.indentLevel--;
+				}
+
+				if( Array.Find( splines, ( s ) => s.autoConstructMode == SplineAutoConstructMode.None ) )
+				{
+					EditorGUI.indentLevel++;
+					BezierSettings.QuickEditSplinePreserveShape = EditorGUILayout.Toggle( QUICK_EDIT_PRESERVE_SPLINE_SHAPE_TEXT, BezierSettings.QuickEditSplinePreserveShape );
+					EditorGUI.indentLevel--;
+				}
+			}
 		}
 
 		public static void DrawBezierPoint( BezierPoint point, int pointIndex, bool isSelected )
@@ -356,10 +402,68 @@ namespace BezierSolution.Extras
 			Color c = Handles.color;
 			Event e = Event.current;
 
+			if( QuickEditSplineMode )
+				isSelected = false;
+
 			Handles.color = isSelected ? BezierSettings.SelectedEndPointColor : BezierSettings.NormalEndPointColor;
 			float size = isSelected ? BezierSettings.SelectedEndPointSize : BezierSettings.EndPointSize;
 
-			if( e.alt || e.button > 0 || ( isSelected && !e.control ) )
+			if( QuickEditSplineMode )
+			{
+				if( e.alt || e.control )
+					Handles.DotHandleCap( 0, point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, EventType.Repaint );
+				else if( !e.shift )
+				{
+					// Shift isn't held: move dragged points
+
+					// Draw a ScaleValueHandle for the sole purpose of detecting drag input
+					EditorGUI.BeginChangeCheck();
+					Handles.ScaleValueHandle( 1f, point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size * 6.5f, Handles.DotHandleCap, 1f );
+					if( EditorGUI.EndChangeCheck() )
+					{
+						// Point is dragged, snap it to the scene geometry
+						Vector3 sceneHitPoint, sceneHitNormal;
+						RaycastAgainstScene( point.spline[point.spline.Count - 1], out sceneHitPoint, out sceneHitNormal );
+
+						Undo.RecordObject( point.transform, "Move point" );
+						point.transform.position = sceneHitPoint;
+
+						if( BezierSettings.QuickEditSplineModifyNormals && !point.spline.autoCalculateNormals )
+						{
+							Undo.RecordObject( point, "Move point" );
+							point.normal = sceneHitNormal;
+						}
+					}
+				}
+				else
+				{
+					// Shift is held: delete clicked points
+
+					// Disallow deleting points from splines with only 2 or less points
+					if( point.spline.Count <= 2 )
+						Handles.DotHandleCap( 0, point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, EventType.Repaint );
+					else
+					{
+						Handles.color = BezierSettings.QuickEditModeDeleteEndPointColor;
+
+						if( Handles.Button( point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, size, Handles.DotHandleCap ) )
+						{
+							// When the selected point is deleted, automatically select the next point so that there is still an active BezierPointEditor
+							// to continue editing this spline
+							Object[] selection = Selection.objects;
+							int pointIndexInSelection = Array.IndexOf( selection, point.gameObject );
+							if( pointIndexInSelection >= 0 )
+								selection[pointIndexInSelection] = point.spline[( point.index + 1 ) % point.spline.Count].gameObject;
+
+							Undo.DestroyObjectImmediate( point.gameObject );
+
+							if( pointIndexInSelection >= 0 )
+								Selection.objects = selection;
+						}
+					}
+				}
+			}
+			else if( e.alt || e.button > 0 || ( isSelected && !e.control ) )
 				Handles.DotHandleCap( 0, point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, EventType.Repaint );
 			else if( Handles.Button( point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, size, Handles.DotHandleCap ) )
 			{
@@ -455,6 +559,147 @@ namespace BezierSolution.Extras
 			}
 		}
 
+		public static void QuickEditModeSceneGUI( BezierSpline[] splines )
+		{
+			Event e = Event.current;
+			GUIContent QUICK_EDIT_MODE_TEXT = new GUIContent( "QUICK EDIT SPLINE MODE" );
+
+			GUIStyle style = "PreOverlayLabel"; // Taken from: https://github.com/Unity-Technologies/UnityCsReference/blob/f78f4093c8a2b45949a847cdc704cf209dcf2f36/Editor/Mono/EditorGUI.cs#L629
+			Rect multiEditTipRect = new Rect( new Vector2( 0f, 5f ), style.CalcSize( QUICK_EDIT_MODE_TEXT ) );
+			multiEditTipRect.x = ( EditorGUIUtility.currentViewWidth - multiEditTipRect.width ) * 0.5f; // Center the text
+
+			Handles.BeginGUI();
+			EditorGUI.DropShadowLabel( multiEditTipRect, QUICK_EDIT_MODE_TEXT, style );
+			Handles.EndGUI();
+
+			if( splines.Length == 0 || e.alt || !e.control || GUIUtility.hotControl != 0 )
+				return;
+
+			if( !e.shift )
+			{
+				// Shift isn't held: add new point to the closest spline when LMB is pressed
+
+				// Get a line that starts from Scene camera's position and goes at cursor's direction
+				Ray ray = HandleUtility.GUIPointToWorldRay( e.mousePosition );
+				Vector3 lineStart = ray.origin;
+				Vector3 lineEnd = lineStart + ray.direction * 2500f;
+
+				// Find the spline end point closest to this line
+				BezierPoint closestEndPoint = null;
+				float closestEndPointDistance = float.PositiveInfinity;
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					BezierPoint point = splines[i][splines[i].Count - 1];
+					float pointDistance = HandleUtility.DistancePointLine( point.position, lineStart, lineEnd );
+					if( pointDistance <= closestEndPointDistance )
+					{
+						closestEndPoint = point;
+						closestEndPointDistance = pointDistance;
+					}
+				}
+
+				if( closestEndPoint )
+				{
+					Vector3 sceneHitPoint, sceneHitNormal;
+					RaycastAgainstScene( closestEndPoint, out sceneHitPoint, out sceneHitNormal );
+
+					// Draw a line from the closest end point to the raycast hit point
+					Color c = Handles.color;
+					Handles.color = BezierSettings.QuickEditModeNewEndPointColor;
+					Handles.DotHandleCap( 0, sceneHitPoint, Quaternion.identity, HandleUtility.GetHandleSize( sceneHitPoint ) * BezierSettings.QuickEditModeNewEndPointSize, EventType.Repaint );
+					Handles.DrawLine( sceneHitPoint, closestEndPoint.position );
+					Handles.color = c;
+
+					// When left clicked, insert a point at the highlighted position
+					if( e.type == EventType.MouseDown && e.button == 0 )
+					{
+						BezierPoint newPoint = closestEndPoint.spline.InsertNewPointAt( closestEndPoint.spline.Count );
+						newPoint.position = sceneHitPoint;
+						if( BezierSettings.QuickEditSplineModifyNormals && !closestEndPoint.spline.autoCalculateNormals )
+							newPoint.normal = sceneHitNormal;
+
+						// Rotate the previous point's followingControlPointPosition in the direction of the new point and assign the resulting vector
+						// to the new point's followingControlPointPosition
+						Vector3 directionToNewPoint = sceneHitPoint - closestEndPoint.position;
+						Quaternion controlPointDeltaRotation = Quaternion.FromToRotation( closestEndPoint.followingControlPointPosition - closestEndPoint.position, directionToNewPoint );
+						newPoint.followingControlPointPosition = sceneHitPoint + controlPointDeltaRotation * ( directionToNewPoint * 0.35f );
+
+						Undo.RegisterCreatedObjectUndo( newPoint.gameObject, "Insert Point" );
+						if( newPoint.transform.parent )
+							Undo.RegisterCompleteObjectUndo( newPoint.transform.parent, "Insert Point" );
+
+						e.Use();
+					}
+				}
+			}
+			else
+			{
+				// Shift is held: insert point to closest spline when LMB is pressed
+
+				// Get a line that starts from Scene camera's position and goes at cursor's direction
+				Ray ray = HandleUtility.GUIPointToWorldRay( e.mousePosition );
+				Vector3 lineStart = ray.origin;
+				Vector3 lineEnd = lineStart + ray.direction * 2500f;
+
+				// Find the spline point closest to this line
+				BezierSpline closestSpline = null;
+				Vector3 closestPointOnSpline = Vector3.zero;
+				float closestPointDistance = float.PositiveInfinity;
+				float closestPointNormalizedT = 0f;
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					Vector3 pointOnLine;
+					Vector3 pointOnSpline = splines[i].FindNearestPointToLine( lineStart, lineEnd, out pointOnLine, out closestPointNormalizedT );
+					float pointDistance = ( pointOnLine - pointOnSpline ).sqrMagnitude;
+					if( pointDistance <= closestPointDistance )
+					{
+						closestSpline = splines[i];
+						closestPointOnSpline = pointOnSpline;
+						closestPointDistance = pointDistance;
+					}
+				}
+
+				if( closestSpline )
+				{
+					Color c = Handles.color;
+					Handles.color = BezierSettings.QuickEditModeNewEndPointColor;
+					Handles.DotHandleCap( 0, closestPointOnSpline, Quaternion.identity, HandleUtility.GetHandleSize( closestPointOnSpline ) * BezierSettings.QuickEditModeNewEndPointSize, EventType.Repaint );
+					Handles.color = c;
+
+					// When left clicked, insert a point at the highlighted position
+					if( e.type == EventType.MouseDown && e.button == 0 )
+					{
+						BezierSpline.Segment segment = closestSpline.GetSegmentAt( closestPointNormalizedT );
+						bool preserveSplineShape = BezierSettings.QuickEditSplinePreserveShape && closestSpline.autoConstructMode == SplineAutoConstructMode.None;
+
+						Vector3 position, precedingControlPointPosition, followingControlPointPosition;
+						BezierPointEditor.CalculateInsertedPointPosition( segment.point1, segment.point2, segment.localT, preserveSplineShape, out position, out precedingControlPointPosition, out followingControlPointPosition );
+
+						BezierPoint newPoint = closestSpline.InsertNewPointAt( segment.point2.index );
+						newPoint.position = position;
+						if( preserveSplineShape )
+						{
+							newPoint.handleMode = BezierPoint.HandleMode.Aligned;
+							newPoint.precedingControlPointPosition = precedingControlPointPosition;
+							newPoint.followingControlPointPosition = followingControlPointPosition;
+						}
+						else
+						{
+							Vector3 precedingDirection = precedingControlPointPosition - position;
+							Vector3 followingDirection = followingControlPointPosition - position;
+							newPoint.followingControlPointPosition = position + followingDirection.normalized * Mathf.Min( precedingDirection.magnitude, followingDirection.magnitude );
+						}
+
+						Undo.RegisterCreatedObjectUndo( newPoint.gameObject, "Insert Point" );
+						if( newPoint.transform.parent )
+							Undo.RegisterCompleteObjectUndo( newPoint.transform.parent, "Insert Point" );
+
+						e.Use();
+					}
+				}
+			}
+		}
+
 		private static void ShowAutoConstructButton( BezierSpline[] splines, GUIContent label, SplineAutoConstructMode mode )
 		{
 			GUILayout.BeginHorizontal();
@@ -515,6 +760,73 @@ namespace BezierSolution.Extras
 
 			spline.dirtyFlags |= dirtyFlags;
 			spline.CheckDirty();
+		}
+
+		private static void RaycastAgainstScene( BezierPoint referencePoint, out Vector3 position, out Vector3 normal )
+		{
+			EventType eventType = Event.current.type;
+			Ray ray = HandleUtility.GUIPointToWorldRay( Event.current.mousePosition );
+
+			// First, try raycasting against scene geometry with or without colliders (it doesn't matter)
+			// Credit: https://forum.unity.com/threads/editor-raycast-against-scene-meshes-without-collider-editor-select-object-using-gui-coordinate.485502
+			if( intersectRayMeshMethod != null && eventType != EventType.Layout && eventType != EventType.Repaint ) // HandleUtility.PickGameObject doesn't work with Layout and Repaint events in OnSceneGUI
+			{
+				GameObject gameObjectUnderCursor = HandleUtility.PickGameObject( Event.current.mousePosition, false );
+				if( gameObjectUnderCursor )
+				{
+					Mesh meshUnderCursor = null;
+					MeshFilter meshFilter = gameObjectUnderCursor.GetComponent<MeshFilter>();
+					if( meshFilter )
+						meshUnderCursor = meshFilter.sharedMesh;
+
+					if( !meshUnderCursor )
+					{
+						SkinnedMeshRenderer skinnedMeshRenderer = gameObjectUnderCursor.GetComponent<SkinnedMeshRenderer>();
+						if( skinnedMeshRenderer )
+							meshUnderCursor = skinnedMeshRenderer.sharedMesh;
+					}
+
+					if( meshUnderCursor )
+					{
+						object[] rayMeshParameters = new object[] { ray, meshUnderCursor, gameObjectUnderCursor.transform.localToWorldMatrix, null };
+						if( (bool) intersectRayMeshMethod.Invoke( null, rayMeshParameters ) )
+						{
+							RaycastHit hit = (RaycastHit) rayMeshParameters[3];
+							position = hit.point;
+							normal = hit.normal.normalized;
+
+							return;
+						}
+					}
+				}
+			}
+
+			// Raycast against scene geometry with colliders
+			object raycastResult = HandleUtility.RaySnap( ray );
+			if( raycastResult != null && raycastResult is RaycastHit )
+			{
+				position = ( (RaycastHit) raycastResult ).point;
+				normal = ( (RaycastHit) raycastResult ).normal.normalized;
+
+				return;
+			}
+
+			// Raycast against a plane that goes through referencePoint
+			if( referencePoint )
+			{
+				Plane plane = new Plane( referencePoint.normal, referencePoint.position );
+				float enter;
+				if( plane.Raycast( ray, out enter ) )
+				{
+					position = ray.GetPoint( enter );
+					normal = referencePoint.normal;
+
+					return;
+				}
+			}
+
+			position = ray.GetPoint( 5f );
+			normal = Vector3.up;
 		}
 
 		public static void DrawSeparator()

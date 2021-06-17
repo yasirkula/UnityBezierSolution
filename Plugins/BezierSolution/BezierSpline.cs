@@ -10,213 +10,10 @@ using UnityEngine;
 #endif
 namespace BezierSolution
 {
-	public enum SplineAutoConstructMode { None = 0, Linear = 1, Smooth1 = 2, Smooth2 = 3 };
-
-	[System.Flags]
-	internal enum InternalDirtyFlags
-	{
-		None = 0,
-		EndPointTransformChange = 1 << 1,
-		ControlPointPositionChange = 1 << 2,
-		NormalChange = 1 << 3,
-		NormalOffsetChange = 1 << 4,
-		ExtraDataChange = 1 << 5,
-		All = EndPointTransformChange | ControlPointPositionChange | NormalChange | NormalOffsetChange | ExtraDataChange
-	};
-
-	[System.Flags]
-	public enum DirtyFlags
-	{
-		None = 0,
-		SplineShapeChanged = 1 << 1,
-		NormalsChanged = 1 << 2,
-		ExtraDataChanged = 1 << 3,
-		All = SplineShapeChanged | NormalsChanged | ExtraDataChanged
-	};
-
-	public delegate void SplineChangeDelegate( BezierSpline spline, DirtyFlags dirtyFlags );
-
 	[AddComponentMenu( "Bezier Solution/Bezier Spline" )]
 	[ExecuteInEditMode]
-	public class BezierSpline : MonoBehaviour, IEnumerable<BezierPoint>
+	public partial class BezierSpline : MonoBehaviour, IEnumerable<BezierPoint>
 	{
-		public struct Segment
-		{
-			public readonly BezierPoint point1, point2;
-			public readonly float localT;
-
-			public Segment( BezierPoint point1, BezierPoint point2, float localT )
-			{
-				this.point1 = point1;
-				this.point2 = point2;
-				this.localT = localT;
-			}
-
-			public float GetNormalizedT()
-			{
-				return GetNormalizedT( localT );
-			}
-
-			public float GetNormalizedT( float localT )
-			{
-				BezierSpline spline = point1.spline;
-				return ( point1.index + localT ) / ( spline.m_loop ? spline.Count : ( spline.Count - 1 ) );
-			}
-
-			public Vector3 GetPoint()
-			{
-				return GetPoint( localT );
-			}
-
-			public Vector3 GetPoint( float localT )
-			{
-				float oneMinusLocalT = 1f - localT;
-
-				return oneMinusLocalT * oneMinusLocalT * oneMinusLocalT * point1.position +
-					   3f * oneMinusLocalT * oneMinusLocalT * localT * point1.followingControlPointPosition +
-					   3f * oneMinusLocalT * localT * localT * point2.precedingControlPointPosition +
-					   localT * localT * localT * point2.position;
-			}
-
-			public Vector3 GetTangent()
-			{
-				return GetTangent( localT );
-			}
-
-			public Vector3 GetTangent( float localT )
-			{
-				float oneMinusLocalT = 1f - localT;
-
-				return 3f * oneMinusLocalT * oneMinusLocalT * ( point1.followingControlPointPosition - point1.position ) +
-					   6f * oneMinusLocalT * localT * ( point2.precedingControlPointPosition - point1.followingControlPointPosition ) +
-					   3f * localT * localT * ( point2.position - point2.precedingControlPointPosition );
-			}
-
-			public Vector3 GetNormal()
-			{
-				return GetNormal( localT );
-			}
-
-			public Vector3 GetNormal( float localT )
-			{
-				Vector3 startNormal = point1.normal;
-				Vector3 endNormal = point2.normal;
-
-				Vector3 normal = Vector3.LerpUnclamped( startNormal, endNormal, localT );
-				if( normal.y == 0f && normal.x == 0f && normal.z == 0f )
-				{
-					// Don't return Vector3.zero as normal
-					normal = Vector3.LerpUnclamped( startNormal, endNormal, localT > 0.01f ? ( localT - 0.01f ) : ( localT + 0.01f ) );
-					if( normal.y == 0f && normal.x == 0f && normal.z == 0f )
-						normal = Vector3.up;
-				}
-
-				return normal;
-			}
-
-			public BezierPoint.ExtraData GetExtraData()
-			{
-				return defaultExtraDataLerpFunction( point1.extraData, point2.extraData, localT );
-			}
-
-			public BezierPoint.ExtraData GetExtraData( float localT )
-			{
-				return defaultExtraDataLerpFunction( point1.extraData, point2.extraData, localT );
-			}
-
-			public BezierPoint.ExtraData GetExtraData( ExtraDataLerpFunction lerpFunction )
-			{
-				return lerpFunction( point1.extraData, point2.extraData, localT );
-			}
-
-			public BezierPoint.ExtraData GetExtraData( float localT, ExtraDataLerpFunction lerpFunction )
-			{
-				return lerpFunction( point1.extraData, point2.extraData, localT );
-			}
-		}
-
-		public struct EvenlySpacedPointsHolder
-		{
-			public readonly BezierSpline spline;
-			public readonly float splineLength;
-			public readonly float[] uniformNormalizedTs;
-
-			public EvenlySpacedPointsHolder( BezierSpline spline, float splineLength, float[] uniformNormalizedTs )
-			{
-				this.spline = spline;
-				this.splineLength = splineLength;
-				this.uniformNormalizedTs = uniformNormalizedTs;
-			}
-
-			public float GetNormalizedTAtPercentage( float percentage )
-			{
-				if( !spline.loop )
-				{
-					if( percentage <= 0f )
-						return 0f;
-					else if( percentage >= 1f )
-						return 1f;
-				}
-				else
-				{
-					while( percentage < 0f )
-						percentage += 1f;
-					while( percentage >= 1f )
-						percentage -= 1f;
-				}
-
-				float indexRaw = ( uniformNormalizedTs.Length - 1 ) * percentage;
-				int index = (int) indexRaw;
-				return Mathf.LerpUnclamped( uniformNormalizedTs[index], uniformNormalizedTs[index + 1], indexRaw - index );
-			}
-
-			public float GetNormalizedTAtDistance( float distance )
-			{
-				return GetNormalizedTAtPercentage( distance / splineLength );
-			}
-
-			public float GetPercentageAtNormalizedT( float normalizedT )
-			{
-				if( !spline.loop )
-				{
-					if( normalizedT <= 0f )
-						return 0f;
-					else if( normalizedT >= 1f )
-						return 1f;
-				}
-				else
-				{
-					if( normalizedT < 0f )
-						normalizedT += 1f;
-					if( normalizedT >= 1f )
-						normalizedT -= 1f;
-				}
-
-				// Perform binary search
-				int lowerBound = 0;
-				int upperBound = uniformNormalizedTs.Length - 1;
-				while( lowerBound <= upperBound )
-				{
-					int index = lowerBound + ( ( upperBound - lowerBound ) >> 1 );
-					float arrElement = uniformNormalizedTs[index];
-					if( arrElement < normalizedT )
-						lowerBound = index + 1;
-					else if( arrElement > normalizedT )
-						upperBound = index - 1;
-					else
-						return index / (float) ( uniformNormalizedTs.Length - 1 );
-				}
-
-				float inverseLerp = ( normalizedT - uniformNormalizedTs[lowerBound] ) / ( uniformNormalizedTs[lowerBound - 1] - uniformNormalizedTs[lowerBound] );
-				return ( lowerBound - inverseLerp ) / ( uniformNormalizedTs.Length - 1 );
-			}
-		}
-
-		public delegate BezierPoint.ExtraData ExtraDataLerpFunction( BezierPoint.ExtraData data1, BezierPoint.ExtraData data2, float normalizedT );
-
-		private static readonly ExtraDataLerpFunction defaultExtraDataLerpFunction = BezierPoint.ExtraData.LerpUnclamped;
-		private static Material gizmoMaterial;
-
 		internal List<BezierPoint> endPoints = new List<BezierPoint>(); // This is not readonly because otherwise BezierWalkers' "Simulate In Editor" functionality may break after recompilation
 
 		public int Count { get { return endPoints.Count; } }
@@ -257,6 +54,8 @@ namespace BezierSolution
 		public Color gizmoColor = Color.white;
 		[UnityEngine.Serialization.FormerlySerializedAs( "m_gizmoSmoothness" )]
 		public int gizmoSmoothness = 4;
+
+		private static Material gizmoMaterial;
 
 		[SerializeField, HideInInspector]
 		[UnityEngine.Serialization.FormerlySerializedAs( "Internal_AutoConstructMode" )]
@@ -308,7 +107,7 @@ namespace BezierSolution
 			}
 		}
 
-		private EvenlySpacedPointsHolder? m_evenlySpacedPoints = null;
+		private EvenlySpacedPointsHolder m_evenlySpacedPoints = null;
 		public EvenlySpacedPointsHolder evenlySpacedPoints
 		{
 			get
@@ -316,11 +115,25 @@ namespace BezierSolution
 				if( m_evenlySpacedPoints == null )
 					m_evenlySpacedPoints = CalculateEvenlySpacedPoints();
 
-				return m_evenlySpacedPoints.Value;
+				return m_evenlySpacedPoints;
+			}
+		}
+
+		private PointCache m_pointCache = null;
+		public PointCache pointCache
+		{
+			get
+			{
+				if( m_pointCache == null )
+					m_pointCache = GeneratePointCache();
+
+				return m_pointCache;
 			}
 		}
 
 		public event SplineChangeDelegate onSplineChanged;
+
+		public int version { get; private set; }
 
 		internal InternalDirtyFlags dirtyFlags;
 
@@ -402,6 +215,9 @@ namespace BezierSolution
 					m_length = null;
 					m_evenlySpacedPoints = null;
 				}
+
+				m_pointCache = null;
+				version++;
 
 				if( onSplineChanged != null )
 				{
@@ -581,6 +397,11 @@ namespace BezierSolution
 			BezierPoint point1 = endPoints[previousIndex];
 			BezierPoint point2 = endPoints[newIndex];
 
+#if UNITY_EDITOR
+			if( undo != null )
+				UnityEditor.Undo.RegisterCompleteObjectUndo( point1.transform.parent, undo );
+#endif
+
 			if( previousIndex < newIndex )
 			{
 				for( int i = previousIndex; i < newIndex; i++ )
@@ -628,6 +449,82 @@ namespace BezierSolution
 
 			for( int i = 0; i < endPoints.Count; i++ )
 				endPoints[i].index = i;
+
+			dirtyFlags |= InternalDirtyFlags.All;
+		}
+
+		public void InvertSpline()
+		{
+			InvertSpline( null );
+		}
+
+		internal void InvertSpline( string undo )
+		{
+#if UNITY_EDITOR
+			// In Editor, this.endPoints will change at each for-iteration due to OnTransformChildrenChanged
+			// but we need the list to be immutable while this function is being executed
+			List<BezierPoint> endPoints = new List<BezierPoint>( this.endPoints );
+#endif
+
+			endPoints.Reverse();
+
+			for( int i = endPoints.Count / 2 - 1; i >= 0; i-- )
+			{
+				BezierPoint point1 = endPoints[i];
+				BezierPoint point2 = endPoints[endPoints.Count - 1 - i];
+
+				int point1SiblingIndex = point1.transform.GetSiblingIndex();
+				int point2SiblingIndex = point2.transform.GetSiblingIndex();
+
+				Transform point1Parent = point1.transform.parent;
+				Transform point2Parent = point2.transform.parent;
+
+#if UNITY_EDITOR
+				if( undo != null )
+				{
+					UnityEditor.Undo.RegisterCompleteObjectUndo( point1Parent, undo );
+					UnityEditor.Undo.RegisterCompleteObjectUndo( point2Parent, undo );
+				}
+#endif
+
+				if( point1Parent != point2Parent )
+				{
+#if UNITY_EDITOR
+					if( undo != null )
+					{
+						UnityEditor.Undo.SetTransformParent( point1.transform, point2Parent, undo );
+						UnityEditor.Undo.SetTransformParent( point2.transform, point1Parent, undo );
+					}
+					else
+#endif
+					{
+						point1.transform.SetParent( point2Parent, true );
+						point2.transform.SetParent( point1Parent, true );
+					}
+				}
+
+				point1.transform.SetSiblingIndex( point2SiblingIndex );
+				point2.transform.SetSiblingIndex( point1SiblingIndex );
+			}
+
+			for( int i = 0; i < endPoints.Count; i++ )
+			{
+#if UNITY_EDITOR
+				if( undo != null )
+					UnityEditor.Undo.RecordObject( endPoints[i], undo );
+#endif
+
+				// Swap control points
+				Vector3 precedingControlPointLocalPosition = endPoints[i].precedingControlPointLocalPosition;
+				endPoints[i].precedingControlPointLocalPosition = endPoints[i].followingControlPointLocalPosition;
+				endPoints[i].followingControlPointLocalPosition = precedingControlPointLocalPosition;
+
+				endPoints[i].index = i;
+			}
+
+#if UNITY_EDITOR
+			this.endPoints = endPoints;
+#endif
 
 			dirtyFlags |= InternalDirtyFlags.All;
 		}
@@ -807,15 +704,15 @@ namespace BezierSolution
 			float step = AccuracyToStepSize( accuracy ) * ( endNormalizedT - startNormalizedT );
 
 			float length = 0f;
-			Vector3 lastPoint = GetPoint( startNormalizedT );
+			Vector3 prevPoint = GetPoint( startNormalizedT );
 			for( float i = startNormalizedT + step; i < endNormalizedT; i += step )
 			{
 				Vector3 thisPoint = GetPoint( i );
-				length += Vector3.Distance( thisPoint, lastPoint );
-				lastPoint = thisPoint;
+				length += Vector3.Distance( thisPoint, prevPoint );
+				prevPoint = thisPoint;
 			}
 
-			length += Vector3.Distance( lastPoint, GetPoint( endNormalizedT ) );
+			length += Vector3.Distance( prevPoint, GetPoint( endNormalizedT ) );
 
 			return length;
 		}
@@ -854,13 +751,13 @@ namespace BezierSolution
 			return GetSegmentAt( normalizedT );
 		}
 
-		public Vector3 FindNearestPointTo( Vector3 worldPos, float accuracy = 100f )
+		public Vector3 FindNearestPointTo( Vector3 worldPos, float accuracy = 100f, int secondPassIterations = 7, float secondPassExtents = 0.025f )
 		{
 			float normalizedT;
-			return FindNearestPointTo( worldPos, out normalizedT, accuracy );
+			return FindNearestPointTo( worldPos, out normalizedT, accuracy, secondPassIterations, secondPassExtents );
 		}
 
-		public Vector3 FindNearestPointTo( Vector3 worldPos, out float normalizedT, float accuracy = 100f )
+		public Vector3 FindNearestPointTo( Vector3 worldPos, out float normalizedT, float accuracy = 100f, int secondPassIterations = 7, float secondPassExtents = 0.025f )
 		{
 			Vector3 result = Vector3.zero;
 			normalizedT = -1f;
@@ -880,17 +777,57 @@ namespace BezierSolution
 				}
 			}
 
+			// Do a second pass near the current normalizedT using binary search
+			// Credit: https://pomax.github.io/bezierinfo/#projections
+			if( secondPassIterations > 0 )
+			{
+				float minT = normalizedT - secondPassExtents;
+				float maxT = normalizedT + secondPassExtents;
+
+				for( int i = 0; i < secondPassIterations; i++ )
+				{
+					float leftT = ( minT + normalizedT ) * 0.5f;
+					float rightT = ( maxT + normalizedT ) * 0.5f;
+
+					Vector3 leftPoint = GetPoint( leftT );
+					Vector3 rightPoint = GetPoint( rightT );
+
+					float leftDistance = ( worldPos - leftPoint ).sqrMagnitude;
+					float rightDistance = ( worldPos - rightPoint ).sqrMagnitude;
+
+					if( leftDistance < minDistance && leftDistance < rightDistance )
+					{
+						minDistance = leftDistance;
+						result = leftPoint;
+						maxT = normalizedT;
+						normalizedT = leftT;
+					}
+					else if( rightDistance < minDistance && rightDistance < leftDistance )
+					{
+						minDistance = rightDistance;
+						result = rightPoint;
+						minT = normalizedT;
+						normalizedT = rightT;
+					}
+					else
+					{
+						minT = leftT;
+						maxT = rightT;
+					}
+				}
+			}
+
 			return result;
 		}
 
-		public Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, float accuracy = 100f )
+		public Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, float accuracy = 100f, int secondPassIterations = 7, float secondPassExtents = 0.025f )
 		{
 			Vector3 pointOnLine;
 			float normalizedT;
-			return FindNearestPointToLine( lineStart, lineEnd, out pointOnLine, out normalizedT, accuracy );
+			return FindNearestPointToLine( lineStart, lineEnd, out pointOnLine, out normalizedT, accuracy, secondPassIterations, secondPassExtents );
 		}
 
-		public Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, out Vector3 pointOnLine, out float normalizedT, float accuracy = 100f )
+		public Vector3 FindNearestPointToLine( Vector3 lineStart, Vector3 lineEnd, out Vector3 pointOnLine, out float normalizedT, float accuracy = 100f, int secondPassIterations = 7, float secondPassExtents = 0.025f )
 		{
 			Vector3 result = Vector3.zero;
 			pointOnLine = Vector3.zero;
@@ -922,6 +859,51 @@ namespace BezierSolution
 					result = thisPoint;
 					pointOnLine = closestPointOnLine;
 					normalizedT = i;
+				}
+			}
+
+			// Do a second pass near the current normalizedT using binary search
+			// Credit: https://pomax.github.io/bezierinfo/#projections
+			if( secondPassIterations > 0 )
+			{
+				float minT = normalizedT - secondPassExtents;
+				float maxT = normalizedT + secondPassExtents;
+
+				for( int i = 0; i < secondPassIterations; i++ )
+				{
+					float leftT = ( minT + normalizedT ) * 0.5f;
+					float rightT = ( maxT + normalizedT ) * 0.5f;
+
+					Vector3 leftPoint = GetPoint( leftT );
+					Vector3 rightPoint = GetPoint( rightT );
+
+					Vector3 leftClosestPointOnLine = lineStart + normalizedLineDirection * Mathf.Clamp( Vector3.Dot( normalizedLineDirection, leftPoint - lineStart ), 0f, length );
+					Vector3 rightClosestPointOnLine = lineStart + normalizedLineDirection * Mathf.Clamp( Vector3.Dot( normalizedLineDirection, rightPoint - lineStart ), 0f, length );
+
+					float leftDistance = ( leftClosestPointOnLine - leftPoint ).sqrMagnitude;
+					float rightDistance = ( rightClosestPointOnLine - rightPoint ).sqrMagnitude;
+
+					if( leftDistance < minDistance && leftDistance < rightDistance )
+					{
+						minDistance = leftDistance;
+						result = leftPoint;
+						pointOnLine = leftClosestPointOnLine;
+						maxT = normalizedT;
+						normalizedT = leftT;
+					}
+					else if( rightDistance < minDistance && rightDistance < leftDistance )
+					{
+						minDistance = rightDistance;
+						result = rightPoint;
+						pointOnLine = rightClosestPointOnLine;
+						minT = normalizedT;
+						normalizedT = rightT;
+					}
+					else
+					{
+						minT = leftT;
+						maxT = rightT;
+					}
 				}
 			}
 
@@ -1249,6 +1231,60 @@ namespace BezierSolution
 			return new EvenlySpacedPointsHolder( this, totalLength, evenlySpacedPoints.ToArray() );
 		}
 
+		public PointCache GeneratePointCache( PointCacheFlags cachedData = PointCacheFlags.All, int resolution = 100 )
+		{
+			return GeneratePointCache( evenlySpacedPoints, defaultExtraDataLerpFunction, cachedData, resolution );
+		}
+
+		public PointCache GeneratePointCache( EvenlySpacedPointsHolder lookupTable, ExtraDataLerpFunction extraDataLerpFunction, PointCacheFlags cachedData = PointCacheFlags.All, int resolution = 100 )
+		{
+			if( cachedData == PointCacheFlags.None )
+				return new PointCache( null, null, null, null, null, false );
+
+			if( lookupTable == null )
+				lookupTable = evenlySpacedPoints;
+
+			if( resolution < 2 )
+				resolution = 2;
+
+			Vector3[] positions = null, normals = null, tangents = null, bitangents = null;
+			BezierPoint.ExtraData[] extraDatas = null;
+			if( ( cachedData & PointCacheFlags.Positions ) == PointCacheFlags.Positions )
+				positions = new Vector3[resolution];
+			if( ( cachedData & PointCacheFlags.Normals ) == PointCacheFlags.Normals )
+				normals = new Vector3[resolution];
+			if( ( cachedData & PointCacheFlags.Tangents ) == PointCacheFlags.Tangents )
+				tangents = new Vector3[resolution];
+			if( ( cachedData & PointCacheFlags.Bitangents ) == PointCacheFlags.Bitangents )
+				bitangents = new Vector3[resolution];
+			if( ( cachedData & PointCacheFlags.ExtraDatas ) == PointCacheFlags.ExtraDatas )
+				extraDatas = new BezierPoint.ExtraData[resolution];
+
+			float indexMultiplier = 1f / ( resolution - 1 );
+
+			for( int i = 0; i < resolution; i++ )
+			{
+				Segment segment = GetSegmentAt( lookupTable.GetNormalizedTAtPercentage( i * indexMultiplier ) );
+
+				if( positions != null )
+					positions[i] = segment.GetPoint();
+				if( normals != null )
+					normals[i] = segment.GetNormal().normalized;
+				if( tangents != null )
+					tangents[i] = segment.GetTangent().normalized;
+				if( bitangents != null )
+				{
+					Vector3 normal = ( normals != null ) ? normals[i] : segment.GetNormal().normalized;
+					Vector3 tangent = ( tangents != null ) ? tangents[i] : segment.GetTangent().normalized;
+					bitangents[i] = Vector3.Cross( normal, tangent );
+				}
+				if( extraDatas != null )
+					extraDatas[i] = segment.GetExtraData( extraDataLerpFunction );
+			}
+
+			return new PointCache( positions, normals, tangents, bitangents, extraDatas, loop );
+		}
+
 		private float AccuracyToStepSize( float accuracy )
 		{
 			if( accuracy <= 0f )
@@ -1307,6 +1343,12 @@ namespace BezierSolution
 		}
 
 #if UNITY_EDITOR
+		[ContextMenu( "Invert Spline" )]
+		private void InvertSplineContextMenu()
+		{
+			InvertSpline( "Invert spline" );
+		}
+
 		internal void Reset()
 		{
 			for( int i = endPoints.Count - 1; i >= 0; i-- )

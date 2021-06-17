@@ -13,7 +13,7 @@ namespace BezierSolution
 
 		public abstract void Execute( float deltaTime );
 
-		protected static readonly BezierSpline.ExtraDataLerpFunction extraDataLerpAsQuaternionFunction = InterpolateExtraDataAsQuaternion;
+		protected static readonly ExtraDataLerpFunction extraDataLerpAsQuaternionFunction = InterpolateExtraDataAsQuaternion;
 
 		private static BezierPoint.ExtraData InterpolateExtraDataAsQuaternion( BezierPoint.ExtraData data1, BezierPoint.ExtraData data2, float normalizedT )
 		{

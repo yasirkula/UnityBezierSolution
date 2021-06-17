@@ -108,6 +108,40 @@ namespace BezierSolution.Extras
 			}
 		}
 
+		private static Color? m_quickEditModeNewEndPointColor = null;
+		public static Color QuickEditModeNewEndPointColor
+		{
+			get
+			{
+				if( m_quickEditModeNewEndPointColor == null )
+					m_quickEditModeNewEndPointColor = GetColor( "BezierSolution_QuickEditNewPointColor", Color.cyan );
+
+				return m_quickEditModeNewEndPointColor.Value;
+			}
+			set
+			{
+				m_quickEditModeNewEndPointColor = value;
+				SetColor( "BezierSolution_QuickEditNewPointColor", value );
+			}
+		}
+
+		private static Color? m_quickEditModeDeleteEndPointColor = null;
+		public static Color QuickEditModeDeleteEndPointColor
+		{
+			get
+			{
+				if( m_quickEditModeDeleteEndPointColor == null )
+					m_quickEditModeDeleteEndPointColor = GetColor( "BezierSolution_QuickEditDeletePointColor", Color.red );
+
+				return m_quickEditModeDeleteEndPointColor.Value;
+			}
+			set
+			{
+				m_quickEditModeDeleteEndPointColor = value;
+				SetColor( "BezierSolution_QuickEditDeletePointColor", value );
+			}
+		}
+
 		private static Color? m_normalsPreviewColor = null;
 		public static Color NormalsPreviewColor
 		{
@@ -195,6 +229,23 @@ namespace BezierSolution.Extras
 			}
 		}
 
+		private static float? m_quickEditModeNewEndPointSize = null;
+		public static float QuickEditModeNewEndPointSize
+		{
+			get
+			{
+				if( m_quickEditModeNewEndPointSize == null )
+					m_quickEditModeNewEndPointSize = EditorPrefs.GetFloat( "BezierSolution_QuickEditNewEndPointSize", 0.075f );
+
+				return m_quickEditModeNewEndPointSize.Value;
+			}
+			set
+			{
+				m_quickEditModeNewEndPointSize = value;
+				EditorPrefs.SetFloat( "BezierSolution_QuickEditNewEndPointSize", value );
+			}
+		}
+
 		private static float? m_normalsPreviewLength = null;
 		public static float NormalsPreviewLength
 		{
@@ -263,6 +314,40 @@ namespace BezierSolution.Extras
 			{
 				m_moveMultiplePointsInOppositeDirections = value;
 				EditorPrefs.SetBool( "BezierSolution_OppositeTransformation", value );
+			}
+		}
+
+		private static bool? m_quickEditSplineModifyNormals = null;
+		public static bool QuickEditSplineModifyNormals
+		{
+			get
+			{
+				if( m_quickEditSplineModifyNormals == null )
+					m_quickEditSplineModifyNormals = EditorPrefs.GetBool( "BezierSolution_QuickEditModifyNormals", true );
+
+				return m_quickEditSplineModifyNormals.Value;
+			}
+			set
+			{
+				m_quickEditSplineModifyNormals = value;
+				EditorPrefs.SetBool( "BezierSolution_QuickEditModifyNormals", value );
+			}
+		}
+
+		private static bool? m_quickEditSplinePreserveShape = null;
+		public static bool QuickEditSplinePreserveShape
+		{
+			get
+			{
+				if( m_quickEditSplinePreserveShape == null )
+					m_quickEditSplinePreserveShape = EditorPrefs.GetBool( "BezierSolution_QuickEditPreserveShape", false );
+
+				return m_quickEditSplinePreserveShape.Value;
+			}
+			set
+			{
+				m_quickEditSplinePreserveShape = value;
+				EditorPrefs.SetBool( "BezierSolution_QuickEditPreserveShape", value );
 			}
 		}
 		#endregion
@@ -382,47 +467,50 @@ namespace BezierSolution.Extras
 			float f;
 			bool b;
 
+			float labelWidth = EditorGUIUtility.labelWidth;
+			EditorGUIUtility.labelWidth += 50f;
+
 			EditorGUI.BeginChangeCheck();
 
 			EditorGUI.BeginChangeCheck();
-			c = EditorGUILayout.ColorField( "Selected Spline Color", SelectedSplineColor );
+			c = ColorField( "Selected Spline Color", SelectedSplineColor, new Color( 0.8f, 0.6f, 0.8f, 1f ) );
 			if( EditorGUI.EndChangeCheck() )
 				SelectedSplineColor = c;
 
 			EditorGUI.BeginChangeCheck();
-			c = EditorGUILayout.ColorField( "Unselected Spline Color", NormalSplineColor );
+			c = ColorField( "Unselected Spline Color", NormalSplineColor, new Color( 0.8f, 0.6f, 0.8f, 1f ) );
 			if( EditorGUI.EndChangeCheck() )
 				NormalSplineColor = c;
 
 			EditorGUI.BeginChangeCheck();
-			f = EditorGUILayout.FloatField( "Selected Spline Thickness", SplineThickness );
+			f = FloatField( "Selected Spline Thickness", SplineThickness, 8f );
 			if( EditorGUI.EndChangeCheck() )
 				SplineThickness = f;
 
 			EditorGUI.BeginChangeCheck();
-			f = EditorGUILayout.FloatField( "Unselected Spline Smoothness", SplineSmoothness );
+			f = FloatField( "Unselected Spline Smoothness", SplineSmoothness, 10f );
 			if( EditorGUI.EndChangeCheck() )
 				SplineSmoothness = f;
 
 			EditorGUILayout.Space();
 
 			EditorGUI.BeginChangeCheck();
-			c = EditorGUILayout.ColorField( "Selected End Points Color", SelectedEndPointColor );
+			c = ColorField( "Selected End Points Color", SelectedEndPointColor, Color.yellow );
 			if( EditorGUI.EndChangeCheck() )
 				SelectedEndPointColor = c;
 
 			EditorGUI.BeginChangeCheck();
-			c = EditorGUILayout.ColorField( "Unselected End Point Color", NormalEndPointColor );
+			c = ColorField( "Unselected End Point Color", NormalEndPointColor, Color.white );
 			if( EditorGUI.EndChangeCheck() )
 				NormalEndPointColor = c;
 
 			EditorGUI.BeginChangeCheck();
-			f = EditorGUILayout.FloatField( "Selected End Points Size", SelectedEndPointSize );
+			f = FloatField( "Selected End Points Size", SelectedEndPointSize, 0.075f * 1.5f );
 			if( EditorGUI.EndChangeCheck() )
 				SelectedEndPointSize = f;
 
 			EditorGUI.BeginChangeCheck();
-			f = EditorGUILayout.FloatField( "Unselected End Points Size", EndPointSize );
+			f = FloatField( "Unselected End Points Size", EndPointSize, 0.075f );
 			if( EditorGUI.EndChangeCheck() )
 				EndPointSize = f;
 
@@ -446,17 +534,17 @@ namespace BezierSolution.Extras
 				ShowControlPointDirections = b;
 
 			EditorGUI.BeginChangeCheck();
-			c = EditorGUILayout.ColorField( "Selected Control Point Color", SelectedControlPointColor );
+			c = ColorField( "Selected Control Point Color", SelectedControlPointColor, Color.green );
 			if( EditorGUI.EndChangeCheck() )
 				SelectedControlPointColor = c;
 
 			EditorGUI.BeginChangeCheck();
-			c = EditorGUILayout.ColorField( "Unselected Control Point Color", NormalControlPointColor );
+			c = ColorField( "Unselected Control Point Color", NormalControlPointColor, Color.white );
 			if( EditorGUI.EndChangeCheck() )
 				NormalControlPointColor = c;
 
 			EditorGUI.BeginChangeCheck();
-			f = EditorGUILayout.FloatField( "Control Points Size", ControlPointSize );
+			f = FloatField( "Control Points Size", ControlPointSize, 0.05f );
 			if( EditorGUI.EndChangeCheck() )
 				ControlPointSize = f;
 
@@ -472,16 +560,33 @@ namespace BezierSolution.Extras
 			EditorGUI.indentLevel++;
 
 			EditorGUI.BeginChangeCheck();
-			c = EditorGUILayout.ColorField( "Normals Preview Color", NormalsPreviewColor );
+			c = ColorField( "Normals Preview Color", NormalsPreviewColor, Color.blue );
 			if( EditorGUI.EndChangeCheck() )
 				NormalsPreviewColor = c;
 
 			EditorGUI.BeginChangeCheck();
-			f = EditorGUILayout.FloatField( "Normals Preview Length", NormalsPreviewLength );
+			f = FloatField( "Normals Preview Length", NormalsPreviewLength, 0.35f );
 			if( EditorGUI.EndChangeCheck() )
 				NormalsPreviewLength = f;
 
 			EditorGUI.indentLevel--;
+
+			EditorGUILayout.Space();
+
+			EditorGUI.BeginChangeCheck();
+			c = ColorField( "Quick Edit New Point Color", QuickEditModeNewEndPointColor, Color.cyan );
+			if( EditorGUI.EndChangeCheck() )
+				QuickEditModeNewEndPointColor = c;
+
+			EditorGUI.BeginChangeCheck();
+			c = ColorField( "Quick Edit Delete Point Color", QuickEditModeDeleteEndPointColor, Color.red );
+			if( EditorGUI.EndChangeCheck() )
+				QuickEditModeDeleteEndPointColor = c;
+
+			EditorGUI.BeginChangeCheck();
+			f = FloatField( "Quick Edit New Point Size", QuickEditModeNewEndPointSize, 0.075f );
+			if( EditorGUI.EndChangeCheck() )
+				QuickEditModeNewEndPointSize = f;
 
 			EditorGUILayout.Space();
 
@@ -493,45 +598,38 @@ namespace BezierSolution.Extras
 			EditorGUI.indentLevel++;
 
 			EditorGUI.BeginChangeCheck();
-			f = EditorGUILayout.FloatField( "Frustum Size", ExtraDataAsFrustumSize );
+			f = FloatField( "Frustum Size", ExtraDataAsFrustumSize, 2.2f );
 			if( EditorGUI.EndChangeCheck() )
 				ExtraDataAsFrustumSize = f;
 
 			EditorGUI.indentLevel--;
 
-			EditorGUILayout.Space();
-
-			if( GUILayout.Button( "Reset To Defaults" ) )
-			{
-				NormalSplineColor = new Color( 0.8f, 0.6f, 0.8f, 1f );
-				SelectedSplineColor = new Color( 0.8f, 0.6f, 0.8f, 1f );
-				NormalEndPointColor = Color.white;
-				SelectedEndPointColor = Color.yellow;
-				NormalControlPointColor = Color.white;
-				SelectedControlPointColor = Color.green;
-				NormalsPreviewColor = Color.blue;
-
-				SplineThickness = 8f;
-				EndPointSize = 0.075f;
-				SelectedEndPointSize = 0.075f * 1.5f;
-				ControlPointSize = 0.05f;
-				NormalsPreviewLength = 0.35f;
-				ExtraDataAsFrustumSize = 2.2f;
-
-				SplineSmoothness = 10f;
-				MoveMultiplePointsInOppositeDirections = false;
-
-				ShowControlPoints = true;
-				ShowControlPointDirections = true;
-				ShowEndPointLabels = true;
-				ShowNormals = true;
-				VisualizeExtraDataAsFrustum = false;
-
-				SceneView.RepaintAll();
-			}
+			EditorGUIUtility.labelWidth = labelWidth;
 
 			if( EditorGUI.EndChangeCheck() )
 				SceneView.RepaintAll();
+		}
+
+		private static Color ColorField( string label, Color value, Color defaultValue )
+		{
+			GUILayout.BeginHorizontal();
+			Color result = EditorGUILayout.ColorField( label, value );
+			if( GUILayout.Button( "Reset", BezierUtils.GL_WIDTH_60 ) )
+				result = defaultValue;
+			GUILayout.EndHorizontal();
+
+			return result;
+		}
+
+		private static float FloatField( string label, float value, float defaultValue )
+		{
+			GUILayout.BeginHorizontal();
+			float result = EditorGUILayout.FloatField( label, value );
+			if( GUILayout.Button( "Reset", BezierUtils.GL_WIDTH_60 ) )
+				result = defaultValue;
+			GUILayout.EndHorizontal();
+
+			return result;
 		}
 
 		private static Color GetColor( string pref, Color defaultColor )

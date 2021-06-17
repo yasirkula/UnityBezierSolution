@@ -522,7 +522,7 @@ namespace BezierSolution
 			bool isSampleRangeForwards = _splineSampleRange.x <= _splineSampleRange.y;
 			float splineSampleLength = _splineSampleRange.y - _splineSampleRange.x;
 
-			BezierSpline.EvenlySpacedPointsHolder evenlySpacedPoints = m_highQuality ? m_spline.evenlySpacedPoints : new BezierSpline.EvenlySpacedPointsHolder();
+			BezierSpline.EvenlySpacedPointsHolder evenlySpacedPoints = m_highQuality ? m_spline.evenlySpacedPoints : null;
 
 			Vector3 initialPoint = m_spline.GetPoint( 0f );
 			for( int i = 0; i < originalVertices.Length; i++ )

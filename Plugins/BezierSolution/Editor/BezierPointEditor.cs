@@ -41,16 +41,12 @@ namespace BezierSolution.Extras
 		}
 
 		private const float CONTROL_POINTS_MINIMUM_SAFE_DISTANCE_SQR = 0.05f * 0.05f;
-		private const float INSERTED_END_POINT_SIZE = 0.075f;
-		private const float INSERTED_END_POINT_MAX_DISTANCE_SQR = 0.5f * 0.5f;
 
 		private static readonly Color RESET_POINT_BUTTON_COLOR = new Color( 1f, 1f, 0.65f, 1f );
 		private static readonly Color REMOVE_POINT_BUTTON_COLOR = new Color( 1f, 0.65f, 0.65f, 1f );
-		private static readonly Color INSERTED_END_POINT_COLOR = new Color( 0f, 1f, 1f, 1f );
 		private static readonly GUIContent MULTI_EDIT_TIP = new GUIContent( "Tip: Hold Shift to affect all points' Transforms" );
 		private static readonly GUIContent OPPOSITE_TRANSFORMATION_OFF_TIP = new GUIContent( "(in THE SAME direction - hit C to toggle)" );
 		private static readonly GUIContent OPPOSITE_TRANSFORMATION_ON_TIP = new GUIContent( "(in OPPOSITE directions - hit C to toggle)" );
-		private static readonly GUIContent INSERT_POINT_AT_CURSOR_TIP = new GUIContent( "Insert Point At Cursor", "Quickly inserts new end points to the clicked sections of the spline" );
 		private static readonly GUIContent INSERT_POINT_PRESERVE_SHAPE = new GUIContent( "Preserve Shape", "Spline's shape will be preserved but the neighboring end points' 'Handle Mode' will no longer be 'Mirrored'" );
 		private static readonly GUIContent APPLY_TO_ALL_POINTS = new GUIContent( "All", "Apply to all points in the selected spline(s)" );
 		private static readonly GUIContent HANDLE_MODE_TIP = new GUIContent( "Handle Mode", "Control points are handled in one of 3 ways:\n-Free: allows moving control points independently\n-Mirrored: places the control points opposite to each other\n-Aligned: ensures that both control points are aligned on a line that passes through the end point (unlike Mirrored mode, their distance to end point may differ)" );
@@ -76,8 +72,6 @@ namespace BezierSolution.Extras
 		private Quaternion[] precedingPointRotations;
 		private Quaternion[] followingPointRotations;
 		private bool controlPointRotationsInitialized;
-
-		private PointInsertionMode insertPointAtCursor = PointInsertionMode.None;
 
 		private Tool previousTool = Tool.None;
 
@@ -175,24 +169,23 @@ namespace BezierSolution.Extras
 
 			Tools.hidden = true;
 
+			if( BezierUtils.QuickEditSplineMode )
+			{
+				EditorApplication.update -= SceneView.RepaintAll;
+				EditorApplication.update += SceneView.RepaintAll;
+			}
+
 			Undo.undoRedoPerformed -= OnUndoRedo;
 			Undo.undoRedoPerformed += OnUndoRedo;
 		}
 
 		private void OnDisable()
 		{
-			insertPointAtCursor = PointInsertionMode.None;
 			ActiveEditor = null;
-
 			Tools.hidden = false;
 
 			Undo.undoRedoPerformed -= OnUndoRedo;
-			EditorApplication.update -= ConstantlyRefreshSceneView;
-		}
-
-		private void ConstantlyRefreshSceneView()
-		{
-			SceneView.RepaintAll();
+			EditorApplication.update -= SceneView.RepaintAll;
 		}
 
 		private void OnSceneGUI()
@@ -230,7 +223,7 @@ namespace BezierSolution.Extras
 					}
 				}
 
-				if( allPoints.Length > 1 && ( tool == Tool.Move || tool == Tool.Rotate || tool == Tool.Scale ) )
+				if( !BezierUtils.QuickEditSplineMode && allPoints.Length > 1 && ( tool == Tool.Move || tool == Tool.Rotate || tool == Tool.Scale ) )
 				{
 					GUIStyle style = "PreOverlayLabel"; // Taken from: https://github.com/Unity-Technologies/UnityCsReference/blob/f78f4093c8a2b45949a847cdc704cf209dcf2f36/Editor/Mono/EditorGUI.cs#L629
 					Rect multiEditTipRect = new Rect( Vector2.zero, style.CalcSize( MULTI_EDIT_TIP ) );
@@ -271,77 +264,16 @@ namespace BezierSolution.Extras
 			// When Control key is pressed, BezierPoint gizmos should be drawn on top of Transform handles in order to allow selecting/deselecting points
 			// If Alt key is pressed, Transform handles aren't drawn at all, so BezierPoint gizmos can be drawn immediately
 			// When in point insertion mode, handles aren't drawn and BezierPoint gizmos must be drawn immediately
-			if( e.alt || !e.control || insertPointAtCursor != PointInsertionMode.None )
+			if( e.alt || !e.control || BezierUtils.QuickEditSplineMode )
 				BezierUtils.DrawBezierPoint( point, point.index + 1, true );
 
-			if( insertPointAtCursor != PointInsertionMode.None )
+			if( BezierUtils.QuickEditSplineMode )
 			{
-				// "point == allPoints[0]": OnSceneGUI is called separately for each selected point,
-				// make sure that closest point to cursor is calculated only once, not multiple times
-				if( point == allPoints[0] && allSplines.Length > 0 && !e.alt && GUIUtility.hotControl == 0 )
+				// Execute quick edit mode's scene GUI only once (otherwise things can get ugly when multiple points are selected)
+				if( point == allPoints[0] )
 				{
-					// Get a line that starts from Scene camera's position and goes at cursor's direction
-					Ray ray = HandleUtility.GUIPointToWorldRay( e.mousePosition );
-					Vector3 lineStart = ray.origin;
-					Vector3 lineEnd = lineStart + ray.direction * 1000f;
-
-					// Find the spline point closest to this line
-					BezierSpline closestSpline = null;
-					Vector3 closestPointOnSpline = Vector3.zero;
-					float closestPointDistance = INSERTED_END_POINT_MAX_DISTANCE_SQR;
-					float closestPointNormalizedT = 0f;
-					for( int i = 0; i < allSplines.Length; i++ )
-					{
-						Vector3 pointOnLine;
-						Vector3 pointOnSpline = allSplines[i].FindNearestPointToLine( lineStart, lineEnd, out pointOnLine, out closestPointNormalizedT, 200f );
-						float pointDistance = ( pointOnLine - pointOnSpline ).sqrMagnitude;
-						if( pointDistance <= closestPointDistance )
-						{
-							closestSpline = allSplines[i];
-							closestPointOnSpline = pointOnSpline;
-							closestPointDistance = pointDistance;
-						}
-					}
-
-					if( closestSpline )
-					{
-						Color c = Handles.color;
-						Handles.color = INSERTED_END_POINT_COLOR;
-						Handles.DotHandleCap( 0, closestPointOnSpline, Quaternion.identity, HandleUtility.GetHandleSize( closestPointOnSpline ) * INSERTED_END_POINT_SIZE, EventType.Repaint );
-						Handles.color = c;
-
-						// When left clicked, insert a point at the highlighted position
-						if( e.type == EventType.MouseDown && e.button == 0 )
-						{
-							BezierSpline.Segment segment = closestSpline.GetSegmentAt( closestPointNormalizedT );
-
-							Vector3 position, precedingControlPointPosition, followingControlPointPosition;
-							CalculateInsertedPointPosition( segment.point1, segment.point2, segment.localT, insertPointAtCursor == PointInsertionMode.PreserveShape, out position, out precedingControlPointPosition, out followingControlPointPosition );
-
-							BezierPoint newPoint = closestSpline.InsertNewPointAt( segment.point2.index );
-							newPoint.position = position;
-							if( insertPointAtCursor == PointInsertionMode.PreserveShape )
-							{
-								newPoint.handleMode = BezierPoint.HandleMode.Aligned;
-								newPoint.precedingControlPointPosition = precedingControlPointPosition;
-								newPoint.followingControlPointPosition = followingControlPointPosition;
-							}
-							else
-							{
-								Vector3 precedingDirection = precedingControlPointPosition - position;
-								Vector3 followingDirection = followingControlPointPosition - position;
-								newPoint.followingControlPointPosition = position + followingDirection.normalized * Mathf.Min( precedingDirection.magnitude, followingDirection.magnitude );
-							}
-
-							Undo.RegisterCreatedObjectUndo( newPoint.gameObject, "Insert Point" );
-							if( newPoint.transform.parent )
-								Undo.RegisterCompleteObjectUndo( newPoint.transform.parent, "Insert Point" );
-
-							e.Use();
-						}
-
-						HandleUtility.AddDefaultControl( 0 );
-					}
+					BezierUtils.QuickEditModeSceneGUI( allSplines );
+					HandleUtility.AddDefaultControl( 0 );
 				}
 
 				return;
@@ -637,7 +569,20 @@ namespace BezierSolution.Extras
 			if( CheckCommands() )
 				GUIUtility.ExitGUI();
 
+			if( allSplines.Length == 0 )
+			{
+				EditorGUILayout.HelpBox( "Selected point(s) aren't children of a BezierSpline!", MessageType.Error );
+
+				if( GUILayout.Button( "Refresh" ) )
+					OnEnable();
+
+				return;
+			}
+
 			BezierUtils.DrawSplineInspectorGUI( allSplines );
+
+			if( BezierUtils.QuickEditSplineMode )
+				return;
 
 			EditorGUILayout.Space();
 			BezierUtils.DrawSeparator();
@@ -736,10 +681,7 @@ namespace BezierSolution.Extras
 						}
 
 						for( int j = 0; j < points.Length; j++ )
-						{
-							Undo.RegisterCompleteObjectUndo( points[j].transform.parent, "Change point index" );
 							spline.ChangePointIndex( points[j].index, newIndices[j], "Change point index" );
-						}
 
 						selection[i].SortPoints( true );
 					}
@@ -772,10 +714,7 @@ namespace BezierSolution.Extras
 						}
 
 						for( int j = 0; j < points.Length; j++ )
-						{
-							Undo.RegisterCompleteObjectUndo( points[j].transform.parent, "Change point index" );
 							spline.ChangePointIndex( points[j].index, newIndices[j], "Change point index" );
-						}
 
 						selection[i].SortPoints( true );
 					}
@@ -801,36 +740,6 @@ namespace BezierSolution.Extras
 				InsertNewPoints( true, false );
 			if( !allSplinesUsingAutoConstructMode && GUILayout.Button( INSERT_POINT_PRESERVE_SHAPE, EditorGUIUtility.wideMode ? BezierUtils.GL_WIDTH_155 : BezierUtils.GL_WIDTH_100 ) )
 				InsertNewPoints( true, true );
-			GUILayout.EndHorizontal();
-
-			GUILayout.BeginHorizontal();
-			EditorGUI.BeginChangeCheck();
-			PointInsertionMode insertPointAtCursorMode = GUILayout.Toggle( insertPointAtCursor != PointInsertionMode.None, INSERT_POINT_AT_CURSOR_TIP, GUI.skin.button ) ? PointInsertionMode.Simple : PointInsertionMode.None;
-			if( EditorGUI.EndChangeCheck() )
-			{
-				insertPointAtCursor = insertPointAtCursorMode;
-
-				EditorApplication.update -= ConstantlyRefreshSceneView;
-				if( insertPointAtCursor != PointInsertionMode.None )
-					EditorApplication.update += ConstantlyRefreshSceneView;
-
-				SceneView.RepaintAll();
-			}
-			if( !allSplinesUsingAutoConstructMode )
-			{
-				EditorGUI.BeginChangeCheck();
-				insertPointAtCursorMode = GUILayout.Toggle( insertPointAtCursor == PointInsertionMode.PreserveShape, INSERT_POINT_PRESERVE_SHAPE, GUI.skin.button, EditorGUIUtility.wideMode ? BezierUtils.GL_WIDTH_155 : BezierUtils.GL_WIDTH_100 ) ? PointInsertionMode.PreserveShape : PointInsertionMode.Simple;
-				if( EditorGUI.EndChangeCheck() )
-				{
-					insertPointAtCursor = insertPointAtCursorMode;
-
-					EditorApplication.update -= ConstantlyRefreshSceneView;
-					if( insertPointAtCursor != PointInsertionMode.None )
-						EditorApplication.update += ConstantlyRefreshSceneView;
-
-					SceneView.RepaintAll();
-				}
-			}
 			GUILayout.EndHorizontal();
 
 			EditorGUILayout.Space();
@@ -1107,8 +1016,8 @@ namespace BezierSolution.Extras
 			BezierUtils.DrawSeparator();
 			EditorGUILayout.Space();
 
-			Color c = GUI.color;
-			GUI.color = RESET_POINT_BUTTON_COLOR;
+			Color c = GUI.backgroundColor;
+			GUI.backgroundColor = RESET_POINT_BUTTON_COLOR;
 
 			if( GUILayout.Button( "Reset Point" ) )
 			{
@@ -1125,7 +1034,7 @@ namespace BezierSolution.Extras
 
 			EditorGUILayout.Space();
 
-			GUI.color = REMOVE_POINT_BUTTON_COLOR;
+			GUI.backgroundColor = REMOVE_POINT_BUTTON_COLOR;
 
 			if( GUILayout.Button( "Remove Point" ) )
 			{
@@ -1133,7 +1042,7 @@ namespace BezierSolution.Extras
 				GUIUtility.ExitGUI();
 			}
 
-			GUI.color = c;
+			GUI.backgroundColor = c;
 
 			for( int i = 0; i < allSplines.Length; i++ )
 				allSplines[i].CheckDirty();
@@ -1320,7 +1229,7 @@ namespace BezierSolution.Extras
 		}
 
 		// Credit: https://stackoverflow.com/a/2614028/2373034
-		private void CalculateInsertedPointPosition( BezierPoint neighbor1, BezierPoint neighbor2, float localT, bool preserveShape, out Vector3 position, out Vector3 precedingControlPointPosition, out Vector3 followingControlPointPosition )
+		internal static void CalculateInsertedPointPosition( BezierPoint neighbor1, BezierPoint neighbor2, float localT, bool preserveShape, out Vector3 position, out Vector3 precedingControlPointPosition, out Vector3 followingControlPointPosition )
 		{
 			float oneMinusLocalT = 1f - localT;
 			Vector3 P0_1 = oneMinusLocalT * neighbor1.position + localT * neighbor1.followingControlPointPosition;
@@ -1336,13 +1245,14 @@ namespace BezierSolution.Extras
 			if( preserveShape )
 			{
 				Undo.RecordObject( neighbor1, "Insert Point" );
+				Undo.RecordObject( neighbor2, "Insert Point" );
+
 				if( neighbor1.handleMode == BezierPoint.HandleMode.Mirrored )
 					neighbor1.handleMode = BezierPoint.HandleMode.Aligned;
-				neighbor1.followingControlPointPosition = P0_1;
-
-				Undo.RecordObject( neighbor2, "Insert Point" );
 				if( neighbor2.handleMode == BezierPoint.HandleMode.Mirrored )
 					neighbor2.handleMode = BezierPoint.HandleMode.Aligned;
+
+				neighbor1.followingControlPointPosition = P0_1;
 				neighbor2.precedingControlPointPosition = P2_3;
 			}
 		}
