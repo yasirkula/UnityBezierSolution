@@ -174,9 +174,11 @@ Finds uniformly distributed points along the spline and returns a lookup table. 
 
 *EvenlySpacedPointsHolder* class has *spline*, *splineLength* and *uniformNormalizedTs* variables. In addition, it has the following convenience functions:
 
-- **GetNormalizedTAtPercentage:** converts a percentage to normalizedT value, i.e. if you enter 0.5f as parameter, it will return the normalizedT value of the spline that corresponds to its actual middle point. 
-- **GetNormalizedTAtDistance:** finds the normalizedT value that is specified units away from the spline's starting point.
-- **GetPercentageAtNormalizedT:** inverse of *GetNormalizedTAtPercentage*.
+**GetNormalizedTAtPercentage:** converts a percentage to normalizedT value, i.e. if you enter 0.5f as parameter, it will return the normalizedT value of the spline that corresponds to its actual middle point. 
+
+**GetNormalizedTAtDistance:** finds the normalizedT value that is specified units away from the spline's starting point.
+
+**GetPercentageAtNormalizedT:** inverse of *GetNormalizedTAtPercentage*.
 
 - `PointCache GeneratePointCache( EvenlySpacedPointsHolder lookupTable, ExtraDataLerpFunction extraDataLerpFunction, PointCacheFlags cachedData = PointCacheFlags.All, int resolution = 100 )`
 
