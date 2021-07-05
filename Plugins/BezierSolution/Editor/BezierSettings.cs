@@ -443,7 +443,7 @@ namespace BezierSolution.Extras
 		[SettingsProvider]
 		public static SettingsProvider CreatePreferencesGUI()
 		{
-			return new SettingsProvider( "yasirkula/Bezier Solution", SettingsScope.Project )
+			return new SettingsProvider( "Project/yasirkula/Bezier Solution", SettingsScope.Project )
 			{
 				guiHandler = ( searchContext ) => PreferencesGUI(),
 				keywords = new System.Collections.Generic.HashSet<string>() { "Bezier", "Spline", "Point", "Normals", "Color", "Size" }
