@@ -6,6 +6,8 @@
 
 **Forum Thread:** https://forum.unity.com/threads/bezier-solution-open-source.440742/
 
+**Discord:** https://discord.gg/UJJt549AaV
+
 **Video:** https://www.youtube.com/watch?v=OpniwcFwSY8
 
 **[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
