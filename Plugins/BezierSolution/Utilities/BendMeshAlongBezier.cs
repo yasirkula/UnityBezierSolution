@@ -11,6 +11,7 @@ using PrefabStageUtility = UnityEditor.Experimental.SceneManagement.PrefabStageU
 namespace BezierSolution
 {
 	[AddComponentMenu( "Bezier Solution/Bend Mesh Along Bezier" )]
+	[HelpURL( "https://github.com/yasirkula/UnityBezierSolution" )]
 	[RequireComponent( typeof( MeshFilter ) )]
 	[ExecuteInEditMode]
 	public class BendMeshAlongBezier : MonoBehaviour
@@ -147,7 +148,7 @@ namespace BezierSolution
 
 		[Header( "Vertex Attributes" )]
 		[SerializeField]
-		private VectorMode m_normalsMode = VectorMode.DontModify;
+		private VectorMode m_normalsMode = VectorMode.ModifyOriginals;
 		public VectorMode normalsMode
 		{
 			get { return m_normalsMode; }
@@ -175,7 +176,7 @@ namespace BezierSolution
 		}
 
 		[SerializeField]
-		private VectorMode m_tangentsMode = VectorMode.DontModify;
+		private VectorMode m_tangentsMode = VectorMode.ModifyOriginals;
 		public VectorMode tangentsMode
 		{
 			get { return m_tangentsMode; }
@@ -521,6 +522,7 @@ namespace BezierSolution
 
 			bool isSampleRangeForwards = _splineSampleRange.x <= _splineSampleRange.y;
 			float splineSampleLength = _splineSampleRange.y - _splineSampleRange.x;
+			bool dontInvertModifiedVertexAttributes = ( m_thicknessMultiplier.x > 0f && m_thicknessMultiplier.y > 0f );
 
 			BezierSpline.EvenlySpacedPointsHolder evenlySpacedPoints = m_highQuality ? m_spline.evenlySpacedPoints : null;
 
@@ -535,7 +537,7 @@ namespace BezierSolution
 				{
 					case Axis.X:
 						vertexPosition = vertex.x;
-						vertexOffset = new Vector3( 0f, vertex.y * m_thicknessMultiplier.x, vertex.z * m_thicknessMultiplier.y );
+						vertexOffset = new Vector3( vertex.z * m_thicknessMultiplier.x, 0f, vertex.y * m_thicknessMultiplier.y );
 						break;
 					case Axis.Y:
 					default:
@@ -544,7 +546,7 @@ namespace BezierSolution
 						break;
 					case Axis.Z:
 						vertexPosition = vertex.z;
-						vertexOffset = new Vector3( vertex.x * m_thicknessMultiplier.x, vertex.y * m_thicknessMultiplier.y, 0f );
+						vertexOffset = new Vector3( vertex.y * m_thicknessMultiplier.x, 0f, vertex.x * m_thicknessMultiplier.y );
 						break;
 				}
 
@@ -562,11 +564,11 @@ namespace BezierSolution
 				vertices[i] = point + direction;
 
 				if( normals != null ) // The only case this happens is when Normals Mode is ModifyOriginals and the original mesh has normals
-					normals[i] = rotation * originalNormals[i];
+					normals[i] = rotation * ( dontInvertModifiedVertexAttributes ? originalNormals[i] : -originalNormals[i] );
 				if( tangents != null ) // The only case this happens is when Tangents Mode is ModifyOriginals and the original mesh has tangents
 				{
 					float tangentW = originalTangents[i].w;
-					tangents[i] = rotation * originalTangents[i];
+					tangents[i] = rotation * ( dontInvertModifiedVertexAttributes ? originalTangents[i] : -originalTangents[i] );
 					tangents[i].w = tangentW;
 				}
 			}

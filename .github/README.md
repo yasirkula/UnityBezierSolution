@@ -244,7 +244,7 @@ Automatically positions a Line Renderer's points so that its shape matches the t
 
 ![bend-mesh-along-bezier](Images/BendMeshAlongBezier.png)
 
-Modifies a MeshFilter's mesh to bend it in the direction of a spline. If *High Quality* is enabled, evenly spaced bezier points will be used so that the mesh bends uniformly but the calculations will be more expensive. If *Auto Refresh* is enabled, the mesh will be refreshed automatically when the spline is modified (at runtime, this has the same effect with disabling the component but in edit mode, disabling the component will restore the original mesh instead). Mesh's normal and tangent vectors can optionally be recalculated in one of two ways:
+Modifies a MeshFilter's mesh to bend it in the direction of a spline (make sure that the spline's normals are perpendicular to the spline; *Auto Calculate Normals* may help). If *High Quality* is enabled, evenly spaced bezier points will be used so that the mesh bends uniformly but the calculations will be more expensive. If *Auto Refresh* is enabled, the mesh will be refreshed automatically when the spline is modified (at runtime, this has the same effect with disabling the component but in edit mode, disabling the component will restore the original mesh instead). Mesh's normal and tangent vectors can optionally be recalculated in one of two ways:
 
 **Modify Originals:** the original mesh's normal and tangent vectors will be rotated with the spline
 
