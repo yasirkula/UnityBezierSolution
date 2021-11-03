@@ -309,6 +309,38 @@ namespace BezierSolution
 		public BezierSpline spline { get; internal set; }
 		public int index { get; internal set; }
 
+		public BezierPoint previousPoint
+		{
+			get
+			{
+				if( spline )
+				{
+					if( index > 0 )
+						return spline.endPoints[index - 1];
+					else if( spline.loop )
+						return spline.endPoints[spline.endPoints.Count - 1];
+				}
+
+				return null;
+			}
+		}
+
+		public BezierPoint nextPoint
+		{
+			get
+			{
+				if( spline )
+				{
+					if( index < spline.endPoints.Count - 1 )
+						return spline.endPoints[index + 1];
+					else if( spline.loop )
+						return spline.endPoints[0];
+				}
+
+				return null;
+			}
+		}
+
 		private void Awake()
 		{
 			transform.hasChanged = true;

@@ -79,7 +79,7 @@ End points have the following properties to store their transformational data: `
 
 Positions of control points can be tweaked using the following properties in BezierPoint: `precedingControlPointPosition`, `precedingControlPointLocalPosition`, `followingControlPointPosition` and `followingControlPointLocalPosition`. The local positions are relative to their corresponding end points.
 
-End points also have read-only `spline` and `index` properties.
+End points also have read-only `spline`, `index`, `previousPoint` and `nextPoint` properties.
 
 ```csharp
 // Set first end point's (world) position to 2,3,5
