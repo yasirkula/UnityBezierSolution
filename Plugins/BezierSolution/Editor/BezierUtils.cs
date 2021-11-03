@@ -19,7 +19,9 @@ namespace BezierSolution.Extras
 		private static readonly GUIContent SHOW_DIRECTIONS_TEXT = new GUIContent( "Show Directions", "Shows control points' directions in Scene window" );
 		private static readonly GUIContent SHOW_POINT_INDICES_TEXT = new GUIContent( "Show Point Indices", "Shows end points' indices in Scene window" );
 		private static readonly GUIContent SHOW_NORMALS_TEXT = new GUIContent( "Show Normals", "Shows end points' normal vectors in Scene window" );
+		private static readonly GUIContent DISPLAYED_INTERMEDIATE_NORMALS_COUNT_TEXT = new GUIContent( "Displayed Intermediate Normals", "The number of normal vectors to display in-between each end point pair" );
 		private static readonly GUIContent AUTO_CALCULATED_NORMALS_ANGLE_TEXT = new GUIContent( "Auto Calculated Normals Angle", "When 'Auto Calculate Normals' button is clicked, all normals will be rotated around their Z axis by the specified amount (each end point's rotation angle can further be customized from the end point's Inspector)" );
+		private static readonly GUIContent AUTO_CALCULATED_INTERMEDIATE_NORMALS_TEXT = new GUIContent( "Auto Calculated Intermediate Normals", "When 'Auto Calculate Normals' button is clicked, this many intermediate normal vectors will be calculated and stored for each end point pair. If no intermediate normal vectors are calculated (0), normals of end point pairs will be lerped to estimate the intermediate values" );
 		private static readonly GUIContent CONSTRUCT_LINEAR_PATH_TEXT = new GUIContent( "Construct Linear Path", "Constructs a completely linear path (end points' Handle Mode will be set to Free)" );
 		private static readonly GUIContent AUTO_CONSTRUCT_SPLINE_TEXT = new GUIContent( "Auto Construct Spline", "Constructs a smooth path" );
 		private static readonly GUIContent AUTO_CONSTRUCT_SPLINE_2_TEXT = new GUIContent( "Auto Construct Spline 2", "Constructs a smooth path (another algorithm)" );
@@ -282,15 +284,27 @@ namespace BezierSolution.Extras
 			if( showNormals )
 			{
 				EditorGUI.indentLevel++;
+
+				EditorGUI.BeginChangeCheck();
+				int displayedIntermediateNormalsCount = EditorGUILayout.IntField( DISPLAYED_INTERMEDIATE_NORMALS_COUNT_TEXT, BezierSettings.DisplayedIntermediateNormalsCount );
+				if( EditorGUI.EndChangeCheck() )
+				{
+					BezierSettings.DisplayedIntermediateNormalsCount = displayedIntermediateNormalsCount;
+					SceneView.RepaintAll();
+				}
+
 				EditorGUI.BeginChangeCheck();
 				float normalsPreviewLength = EditorGUILayout.FloatField( "Preview Length", BezierSettings.NormalsPreviewLength );
 				if( EditorGUI.EndChangeCheck() )
 				{
-					BezierSettings.NormalsPreviewLength = Mathf.Max( 0f, normalsPreviewLength );
+					BezierSettings.NormalsPreviewLength = normalsPreviewLength;
 					SceneView.RepaintAll();
 				}
+
 				EditorGUI.indentLevel--;
 			}
+
+			EditorGUILayout.Space();
 
 			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.autoCalculatedNormalsAngle == s2.autoCalculatedNormalsAngle );
 			EditorGUI.BeginChangeCheck();
@@ -302,6 +316,21 @@ namespace BezierSolution.Extras
 					Undo.RecordObject( splines[i], "Change Normals Angle" );
 					splines[i].autoCalculatedNormalsAngle = autoCalculatedNormalsAngle;
 					SetSplineDirtyWithUndo( splines[i], "Change Normals Angle", InternalDirtyFlags.NormalOffsetChange );
+				}
+
+				SceneView.RepaintAll();
+			}
+
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.autoCalculatedIntermediateNormalsCount == s2.autoCalculatedIntermediateNormalsCount );
+			EditorGUI.BeginChangeCheck();
+			int autoCalculatedIntermediateNormalsCount = EditorGUILayout.IntField( AUTO_CALCULATED_INTERMEDIATE_NORMALS_TEXT, splines[0].autoCalculatedIntermediateNormalsCount );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					Undo.RecordObject( splines[i], "Change Intermediate Normals Count" );
+					splines[i].autoCalculatedIntermediateNormalsCount = autoCalculatedIntermediateNormalsCount;
+					SetSplineDirtyWithUndo( splines[i], "Change Intermediate Normals Count", InternalDirtyFlags.NormalOffsetChange );
 				}
 
 				SceneView.RepaintAll();
@@ -429,10 +458,7 @@ namespace BezierSolution.Extras
 						point.transform.position = sceneHitPoint;
 
 						if( BezierSettings.QuickEditSplineModifyNormals && !point.spline.autoCalculateNormals )
-						{
-							Undo.RecordObject( point, "Move point" );
-							point.normal = sceneHitNormal;
-						}
+							point.SetNormalAndResetIntermediateNormals( sceneHitNormal, "Move point" );
 					}
 				}
 				else
@@ -476,13 +502,12 @@ namespace BezierSolution.Extras
 					{
 						// If point's spline is included in current selection, remove the spline
 						// from selection since its Scene handles interfere with points' scene handles
-						BezierSpline spline = point.GetComponentInParent<BezierSpline>();
 						bool splineIncludedInSelection = false;
-						if( spline )
+						if( point.spline )
 						{
 							for( int i = 0; i < selection.Length; i++ )
 							{
-								if( selection[i] == spline || selection[i] == spline.transform || selection[i] == spline.gameObject )
+								if( selection[i] == point.spline || selection[i] == point.spline.transform || selection[i] == point.spline.gameObject )
 								{
 									selection[i] = point.gameObject;
 									splineIncludedInSelection = true;
@@ -506,10 +531,9 @@ namespace BezierSolution.Extras
 								if( selection.Length == 1 )
 								{
 									// When all points are deselected, select the spline automatically
-									BezierSpline spline = point.GetComponentInParent<BezierSpline>();
-									if( spline )
+									if( point.spline )
 									{
-										selection[0] = spline.gameObject;
+										selection[0] = point.spline.gameObject;
 										break;
 									}
 								}
@@ -555,6 +579,19 @@ namespace BezierSolution.Extras
 			{
 				Handles.color = BezierSettings.NormalsPreviewColor;
 				Handles.DrawLine( point.position, point.position + point.normal * HandleUtility.GetHandleSize( point.position ) * BezierSettings.NormalsPreviewLength );
+
+				if( BezierSettings.DisplayedIntermediateNormalsCount > 0 && point.spline && point.nextPoint )
+				{
+					BezierSpline.Segment segment = new BezierSpline.Segment( point, point.nextPoint, 0f );
+					float localTMultiplier = 1f / ( BezierSettings.DisplayedIntermediateNormalsCount + 1 );
+					for( int i = BezierSettings.DisplayedIntermediateNormalsCount; i > 0; i-- )
+					{
+						float localT = i * localTMultiplier;
+						Vector3 segmentPosition = segment.GetPoint( localT );
+						Handles.DrawLine( segmentPosition, segmentPosition + segment.GetNormal( localT ) * HandleUtility.GetHandleSize( segmentPosition ) * BezierSettings.NormalsPreviewLength * 0.75f );
+					}
+				}
+
 				Handles.color = c;
 			}
 		}
@@ -616,7 +653,7 @@ namespace BezierSolution.Extras
 						BezierPoint newPoint = closestEndPoint.spline.InsertNewPointAt( closestEndPoint.spline.Count );
 						newPoint.position = sceneHitPoint;
 						if( BezierSettings.QuickEditSplineModifyNormals && !closestEndPoint.spline.autoCalculateNormals )
-							newPoint.normal = sceneHitNormal;
+							newPoint.SetNormalAndResetIntermediateNormals( sceneHitNormal, null );
 
 						// Rotate the previous point's followingControlPointPosition in the direction of the new point and assign the resulting vector
 						// to the new point's followingControlPointPosition

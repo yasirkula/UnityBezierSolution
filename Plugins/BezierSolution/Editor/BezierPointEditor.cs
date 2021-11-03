@@ -847,10 +847,7 @@ namespace BezierSolution.Extras
 			if( EditorGUI.EndChangeCheck() )
 			{
 				for( int i = 0; i < allPoints.Length; i++ )
-				{
-					Undo.RecordObject( allPoints[i], "Change Normal" );
-					allPoints[i].normal = normal;
-				}
+					allPoints[i].SetNormalAndResetIntermediateNormals( normal, "Change Normal" );
 
 				SceneView.RepaintAll();
 			}
@@ -860,10 +857,7 @@ namespace BezierSolution.Extras
 			{
 				Vector3 cameraPos = SceneView.lastActiveSceneView.camera.transform.position;
 				for( int i = 0; i < allPoints.Length; i++ )
-				{
-					Undo.RecordObject( allPoints[i], "Change Normal" );
-					allPoints[i].normal = ( cameraPos - allPoints[i].position ).normalized;
-				}
+					allPoints[i].SetNormalAndResetIntermediateNormals( ( cameraPos - allPoints[i].position ).normalized, "Change Normal" );
 
 				SceneView.RepaintAll();
 			}
@@ -916,8 +910,7 @@ namespace BezierSolution.Extras
 							else
 								tangent = new BezierSpline.Segment( spline[index - 1], spline[index], 1f ).GetTangent();
 
-							Undo.RecordObject( allPoints[i], "Change Normal Rotate Angle" );
-							allPoints[i].normal = Quaternion.AngleAxis( normalRotationAngle, tangent ) * allPoints[i].normal;
+							allPoints[i].SetNormalAndResetIntermediateNormals( Quaternion.AngleAxis( normalRotationAngle, tangent ) * allPoints[i].normal, "Change Normal Rotate Angle" );
 						}
 					}
 
@@ -1260,10 +1253,7 @@ namespace BezierSolution.Extras
 		private void FlipNormals( IList<BezierPoint> points )
 		{
 			for( int i = 0; i < points.Count; i++ )
-			{
-				Undo.RecordObject( points[i], "Flip Normals" );
-				points[i].normal = -points[i].normal;
-			}
+				points[i].SetNormalAndResetIntermediateNormals( -points[i].normal, "Flip Normals" );
 		}
 
 		private void NormalizeNormals( IList<BezierPoint> points )
@@ -1271,20 +1261,14 @@ namespace BezierSolution.Extras
 			for( int i = 0; i < points.Count; i++ )
 			{
 				if( points[i].normal != Vector3.zero )
-				{
-					Undo.RecordObject( points[i], "Normalize Normals" );
-					points[i].normal = points[i].normal.normalized;
-				}
+					points[i].SetNormalAndResetIntermediateNormals( points[i].normal.normalized, "Normalize Normals" );
 			}
 		}
 
 		private void ResetNormals( IList<BezierPoint> points )
 		{
 			for( int i = 0; i < points.Count; i++ )
-			{
-				Undo.RecordObject( points[i], "Reset Normals" );
-				points[i].normal = Vector3.up;
-			}
+				points[i].SetNormalAndResetIntermediateNormals( Vector3.up, "Reset Normals" );
 		}
 
 		private void OnUndoRedo()

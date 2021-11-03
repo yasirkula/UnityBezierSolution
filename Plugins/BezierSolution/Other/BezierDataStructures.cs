@@ -88,6 +88,15 @@ namespace BezierSolution
 			public Vector3 GetNormal() { return GetNormal( localT ); }
 			public Vector3 GetNormal( float localT )
 			{
+				Vector3[] intermediateNormals = point1.intermediateNormals;
+				if( intermediateNormals != null && intermediateNormals.Length > 0 )
+				{
+					localT = Mathf.Clamp01( localT ) * ( intermediateNormals.Length - 1 );
+					int localStartIndex = (int) localT;
+
+					return ( localStartIndex < intermediateNormals.Length - 1 ) ? Vector3.LerpUnclamped( intermediateNormals[localStartIndex], intermediateNormals[localStartIndex + 1], localT - localStartIndex ) : intermediateNormals[localStartIndex];
+				}
+
 				Vector3 startNormal = point1.normal;
 				Vector3 endNormal = point2.normal;
 

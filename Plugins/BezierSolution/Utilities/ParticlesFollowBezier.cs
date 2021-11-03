@@ -4,6 +4,7 @@ using UnityEngine;
 namespace BezierSolution
 {
 	[AddComponentMenu( "Bezier Solution/Particles Follow Bezier" )]
+	[HelpURL( "https://github.com/yasirkula/UnityBezierSolution" )]
 	[RequireComponent( typeof( ParticleSystem ) )]
 	[ExecuteInEditMode]
 	public class ParticlesFollowBezier : MonoBehaviour

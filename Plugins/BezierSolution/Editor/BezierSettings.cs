@@ -258,6 +258,7 @@ namespace BezierSolution.Extras
 			}
 			set
 			{
+				value = Mathf.Max( value, 0f );
 				m_normalsPreviewLength = value;
 				EditorPrefs.SetFloat( "BezierSolution_NormalsPreviewLength", value );
 			}
@@ -297,6 +298,24 @@ namespace BezierSolution.Extras
 				value = Mathf.Max( value, 1f );
 				m_splineSmoothness = value;
 				EditorPrefs.SetFloat( "BezierSolution_SplineSmoothness", value );
+			}
+		}
+
+		private static int? m_displayedIntermediateNormalsCount = null;
+		public static int DisplayedIntermediateNormalsCount
+		{
+			get
+			{
+				if( m_displayedIntermediateNormalsCount == null )
+					m_displayedIntermediateNormalsCount = EditorPrefs.GetInt( "BezierSolution_IntermediateNormals", 8 );
+
+				return m_displayedIntermediateNormalsCount.Value;
+			}
+			set
+			{
+				value = Mathf.Clamp( value, 0, 999 );
+				m_displayedIntermediateNormalsCount = value;
+				EditorPrefs.SetInt( "BezierSolution_IntermediateNormals", value );
 			}
 		}
 
@@ -465,6 +484,7 @@ namespace BezierSolution.Extras
 		{
 			Color c;
 			float f;
+			int i;
 			bool b;
 
 			float labelWidth = EditorGUIUtility.labelWidth;
@@ -560,6 +580,11 @@ namespace BezierSolution.Extras
 			EditorGUI.indentLevel++;
 
 			EditorGUI.BeginChangeCheck();
+			i = IntField( "Displayed Intermediate Normals", DisplayedIntermediateNormalsCount, 8 );
+			if( EditorGUI.EndChangeCheck() )
+				DisplayedIntermediateNormalsCount = i;
+
+			EditorGUI.BeginChangeCheck();
 			c = ColorField( "Normals Preview Color", NormalsPreviewColor, Color.blue );
 			if( EditorGUI.EndChangeCheck() )
 				NormalsPreviewColor = c;
@@ -625,6 +650,17 @@ namespace BezierSolution.Extras
 		{
 			GUILayout.BeginHorizontal();
 			float result = EditorGUILayout.FloatField( label, value );
+			if( GUILayout.Button( "Reset", BezierUtils.GL_WIDTH_60 ) )
+				result = defaultValue;
+			GUILayout.EndHorizontal();
+
+			return result;
+		}
+
+		private static int IntField( string label, int value, int defaultValue )
+		{
+			GUILayout.BeginHorizontal();
+			int result = EditorGUILayout.IntField( label, value );
 			if( GUILayout.Button( "Reset", BezierUtils.GL_WIDTH_60 ) )
 				result = defaultValue;
 			GUILayout.EndHorizontal();

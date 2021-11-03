@@ -3,6 +3,7 @@
 namespace BezierSolution
 {
 	[AddComponentMenu( "Bezier Solution/Bezier Line Renderer" )]
+	[HelpURL( "https://github.com/yasirkula/UnityBezierSolution" )]
 	[RequireComponent( typeof( LineRenderer ) )]
 	[ExecuteInEditMode]
 	public class BezierLineRenderer : MonoBehaviour

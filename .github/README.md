@@ -75,7 +75,7 @@ spline.Initialize( 2 );
 
 You can change the position, rotation, scale and normal values of the end points, as well as the positions of their control points to reshape the spline.
 
-End points have the following properties to store their transformational data: `position`, `localPosition`, `rotation`, `localRotation`, `eulerAngles`, `localEulerAngles`, `localScale`, `normal` and `autoCalculatedNormalAngleOffset`.
+End points have the following properties to store their transformational data: `position`, `localPosition`, `rotation`, `localRotation`, `eulerAngles`, `localEulerAngles`, `localScale`, `normal`, `autoCalculatedNormalAngleOffset` and `intermediateNormals`.
 
 Positions of control points can be tweaked using the following properties in BezierPoint: `precedingControlPointPosition`, `precedingControlPointLocalPosition`, `followingControlPointPosition` and `followingControlPointLocalPosition`. The local positions are relative to their corresponding end points.
 
@@ -110,9 +110,9 @@ If you want to create a linear path between the end points of the spline, you ca
 
 - **Auto calculate the normals**
 
-If you want to calculate the spline's normal vectors automatically, you can call the **AutoCalculateNormals( float normalAngle = 0f, int smoothness = 10 )** function (or, to call this function automatically when spline's end points are modified, simply change the spline's **autoCalculateNormals** and **autoCalculatedNormalsAngle** properties). All resulting normal vectors will be rotated around their Z axis by "normalAngle" degrees. Additionally, each end point's normal vector will be rotated by that end point's "autoCalculatedNormalAngleOffset" degrees. "smoothness" determines how many intermediate steps are taken between each consecutive end point to calculate those end points' normal vectors. More intermediate steps is better but also slower to calculate.
+If you want to calculate the spline's normal vectors automatically, you can call the **AutoCalculateNormals( float normalAngle = 0f, int smoothness = 10, bool calculateIntermediateNormals = false )** function (or, to call this function automatically when spline's end points are modified, simply change the spline's **autoCalculateNormals**, **autoCalculatedNormalsAngle** and **m_autoCalculatedIntermediateNormalsCount** properties). All resulting normal vectors will be rotated around their Z axis by "normalAngle" degrees. Additionally, each end point's normal vector will be rotated by that end point's "autoCalculatedNormalAngleOffset" degrees. "smoothness" determines how many intermediate steps are taken between each consecutive end point to calculate those end points' normal vectors. More intermediate steps is better but also slower to calculate. When "calculateIntermediateNormals" is enabled, calculated intermediate normals (determined by "smoothness") are cached at each end point. This results in smoother linear interpolation for normals. Otherwise, the intermediate normals aren't stored anywhere and only the end points' normals are used to estimate normals along the spline.
 
-If auto calculated normals don't look quite right despite modifying the "normalAngle" (*Auto Calculated Normals Angle* in the Inspector) and "autoCalculatedNormalAngleOffset" (*Normal Angle* in the Inspector) variables, you can either consider inserting new end points to the sections of the spline that normals don't behave correctly, or setting the normals manually.
+If auto calculated normals don't look quite right despite modifying the "calculateIntermediateNormals" (*Auto Calculated Intermediate Normals* in the Inspector), "normalAngle" (*Auto Calculated Normals Angle* in the Inspector) and "autoCalculatedNormalAngleOffset" (*Normal Angle* in the Inspector) variables, you can either consider inserting new end points to the sections of the spline that normals don't behave correctly, or setting the normals manually.
 
 - **Get notified when spline is modified**
 
@@ -136,7 +136,7 @@ Tangent is calculated using the first derivative of the spline formula and gives
 
 - `Vector3 GetNormal( float normalizedT )`
 
-Interpolates between the end points' normal vectors. Note that this plugin doesn't store any intermediate data between end point pairs, so if two consecutive end points have almost the opposite tangents, then their interpolated normal vector may not be correct at some parts of the spline. Inserting a new end point between these two end points could resolve this issue. By default, all normal vectors have value (0,1,0).
+Interpolates between the end points' normal vectors. If intermediate normals are calculated, they are interpolated to calculate the result. Otherwise, only the end points' normal vectors are interpolated and the resulting normal vectors may not be correct at some parts of the spline. Inserting new end point(s) to those sections of the spline could resolve this issue. By default, all normal vectors have value (0,1,0).
 
 - `BezierPoint.ExtraData GetExtraData( float normalizedT )`
 
