@@ -22,7 +22,7 @@ namespace BezierSolution
 namespace BezierSolution.Extras
 {
 	[CustomPropertyDrawer( typeof( MinMaxRangeAttribute ) )]
-	public class BaseInputDrawer : PropertyDrawer
+	public class MixMaxRangeAttributeDrawer : PropertyDrawer
 	{
 		private const float MIN_MAX_SLIDER_TEXT_FIELD_WIDTH = 45f;
 
