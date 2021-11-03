@@ -172,7 +172,7 @@ Moves a point (normalizedT) on the spline deltaMovement units ahead and returns 
 
 Finds uniformly distributed points along the spline and returns a lookup table. The lookup table isn't refreshed automatically, so it may be invalidated when the spline is modified. This function's *resolution* parameter determines approximately how many points will be calculated per each segment of the spline and accuracy determines how accurate the uniform spacing will be. The default values should work well in most cases.
 
-**Food For Thought**: BezierSpline has an **evenlySpacedPoints** property which is a shorthand for `CalculateEvenlySpacedPoints()`. Its value is cached and won't be recalculated unless the spline is modified.
+**Food For Thought**: BezierSpline has an **evenlySpacedPoints** property which is a shorthand for `CalculateEvenlySpacedPoints( evenlySpacedPointsResolution, evenlySpacedPointsAccuracy )`. Its value is cached and won't be recalculated unless the spline is modified.
 
 *EvenlySpacedPointsHolder* class has *spline*, *splineLength* and *uniformNormalizedTs* variables. In addition, it has the following convenience functions:
 
@@ -186,7 +186,7 @@ Finds uniformly distributed points along the spline and returns a lookup table. 
 
 Returns a cache of data for uniformly distributed points along the spline. The cache isn't refreshed automatically, so it may be invalidated when the spline is modified. This function's *resolution* parameter determines how many uniformly distributed points the cache will have. To determine which data should be cached, *cachedData* parameter is used. *PointCacheFlags* is an enum flag, meaning that it can have one or more of these values: **Positions**, **Normals**, **Tangents**, **Bitangents** and/or **ExtraDatas**. *lookupTable* is an optional parameter and, by default, spline's *evenlySpacedPoints* is used. *extraDataLerpFunction* is also an optional parameter and is used only when PointCacheFlags.ExtraDatas is included in cachedData.
 
-**Food For Thought**: BezierSpline has a **pointCache** property which is a shorthand for `GeneratePointCache()`. Its value is cached and won't be recalculated unless the spline is modified.
+**Food For Thought**: BezierSpline has a **pointCache** property which is a shorthand for `GeneratePointCache( resolution: pointCacheResolution )`. Its value is cached and won't be recalculated unless the spline is modified.
 
 *PointCache* class has *positions*, *normals*, *tangents*, *bitangents*, *extraDatas* and *loop* variables (loop determines whether or not the spline had its *loop* property set to true while calculating the cache). In addition, it has the following functions: *GetPoint*, *GetNormal*, *GetTangent*, *GetBitangent* and *GetExtraData* (if the required data for a function wasn't included in PointCacheFlags, then the function will throw an exception). If a spline is rarely modified at runtime, then point cache can be used to get points, tangents, normals, etc. along the spline in a cheaper and uniform way.
 

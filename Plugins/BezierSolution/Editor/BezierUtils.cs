@@ -22,6 +22,9 @@ namespace BezierSolution.Extras
 		private static readonly GUIContent DISPLAYED_INTERMEDIATE_NORMALS_COUNT_TEXT = new GUIContent( "Displayed Intermediate Normals", "The number of normal vectors to display in-between each end point pair" );
 		private static readonly GUIContent AUTO_CALCULATED_NORMALS_ANGLE_TEXT = new GUIContent( "Auto Calculated Normals Angle", "When 'Auto Calculate Normals' button is clicked, all normals will be rotated around their Z axis by the specified amount (each end point's rotation angle can further be customized from the end point's Inspector)" );
 		private static readonly GUIContent AUTO_CALCULATED_INTERMEDIATE_NORMALS_TEXT = new GUIContent( "Auto Calculated Intermediate Normals", "When 'Auto Calculate Normals' button is clicked, this many intermediate normal vectors will be calculated and stored for each end point pair. If no intermediate normal vectors are calculated (0), normals of end point pairs will be lerped to estimate the intermediate values" );
+		private static readonly GUIContent EVENLY_SPACED_POINTS_RESOLUTION_TEXT = new GUIContent( "Evenly Spaced Points Resolution", "Determines approximately how many points will be calculated per each segment of the spline while generating 'evenlySpacedPoints'. Evenly spaced points are used by numerous utility components when their 'High Quality' option is enabled" );
+		private static readonly GUIContent EVENLY_SPACED_POINTS_ACCURACY_TEXT = new GUIContent( "Evenly Spaced Points Accuracy", "Determines how accurate the uniform spacing of 'evenlySpacedPoints' will be" );
+		private static readonly GUIContent POINT_CACHE_RESOLUTION_TEXT = new GUIContent( "Point Cache Resolution", "Determines how many uniformly distributed points 'pointCache' will have" );
 		private static readonly GUIContent CONSTRUCT_LINEAR_PATH_TEXT = new GUIContent( "Construct Linear Path", "Constructs a completely linear path (end points' Handle Mode will be set to Free)" );
 		private static readonly GUIContent AUTO_CONSTRUCT_SPLINE_TEXT = new GUIContent( "Auto Construct Spline", "Constructs a smooth path" );
 		private static readonly GUIContent AUTO_CONSTRUCT_SPLINE_2_TEXT = new GUIContent( "Auto Construct Spline 2", "Constructs a smooth path (another algorithm)" );
@@ -126,6 +129,24 @@ namespace BezierSolution.Extras
 			//	Handles.DrawLine( spline.GetPoint( i ), spline.GetPoint( i ) + spline.GetTangent( i ) );
 			//}
 			//Handles.color = _tmp;
+		}
+
+		public static void DrawSplineEvenlySpacedPoints( BezierSpline spline )
+		{
+			if( Event.current.type == EventType.Repaint )
+			{
+				Color c = Handles.color;
+				Handles.color = BezierSettings.EvenlySpacedPointsColor;
+
+				float[] evenlySpacedNormalizedTs = spline.evenlySpacedPoints.uniformNormalizedTs;
+				for( int i = 0; i < evenlySpacedNormalizedTs.Length; i++ )
+				{
+					Vector3 evenlySpacedPoint = spline.GetPoint( evenlySpacedNormalizedTs[i] );
+					Handles.SphereHandleCap( 0, evenlySpacedPoint, Quaternion.identity, HandleUtility.GetHandleSize( evenlySpacedPoint ) * BezierSettings.EvenlySpacedPointsSize, EventType.Repaint );
+				}
+
+				Handles.color = c;
+			}
 		}
 
 		public static void DrawSplineInspectorGUI( BezierSpline[] splines )
@@ -286,18 +307,26 @@ namespace BezierSolution.Extras
 				EditorGUI.indentLevel++;
 
 				EditorGUI.BeginChangeCheck();
-				int displayedIntermediateNormalsCount = EditorGUILayout.IntField( DISPLAYED_INTERMEDIATE_NORMALS_COUNT_TEXT, BezierSettings.DisplayedIntermediateNormalsCount );
+				Color normalsPreviewColor = EditorGUILayout.ColorField( "Color", BezierSettings.NormalsPreviewColor );
 				if( EditorGUI.EndChangeCheck() )
 				{
-					BezierSettings.DisplayedIntermediateNormalsCount = displayedIntermediateNormalsCount;
+					BezierSettings.NormalsPreviewColor = normalsPreviewColor;
 					SceneView.RepaintAll();
 				}
 
 				EditorGUI.BeginChangeCheck();
-				float normalsPreviewLength = EditorGUILayout.FloatField( "Preview Length", BezierSettings.NormalsPreviewLength );
+				float normalsPreviewLength = EditorGUILayout.FloatField( "Length", BezierSettings.NormalsPreviewLength );
 				if( EditorGUI.EndChangeCheck() )
 				{
 					BezierSettings.NormalsPreviewLength = normalsPreviewLength;
+					SceneView.RepaintAll();
+				}
+
+				EditorGUI.BeginChangeCheck();
+				int displayedIntermediateNormalsCount = EditorGUILayout.IntField( DISPLAYED_INTERMEDIATE_NORMALS_COUNT_TEXT, BezierSettings.DisplayedIntermediateNormalsCount );
+				if( EditorGUI.EndChangeCheck() )
+				{
+					BezierSettings.DisplayedIntermediateNormalsCount = displayedIntermediateNormalsCount;
 					SceneView.RepaintAll();
 				}
 
@@ -336,7 +365,85 @@ namespace BezierSolution.Extras
 				SceneView.RepaintAll();
 			}
 
+			EditorGUILayout.Space();
+
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.evenlySpacedPointsResolution == s2.evenlySpacedPointsResolution );
+			EditorGUI.BeginChangeCheck();
+			float evenlySpacedPointsResolution = EditorGUILayout.FloatField( EVENLY_SPACED_POINTS_RESOLUTION_TEXT, splines[0].evenlySpacedPointsResolution );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					Undo.RecordObject( splines[i], "Change Evenly Spaced Points Resolution" );
+					splines[i].evenlySpacedPointsResolution = evenlySpacedPointsResolution;
+					SetSplineDirtyWithUndo( splines[i], "Change Evenly Spaced Points Resolution", InternalDirtyFlags.All );
+				}
+
+				SceneView.RepaintAll();
+			}
+
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.evenlySpacedPointsAccuracy == s2.evenlySpacedPointsAccuracy );
+			EditorGUI.BeginChangeCheck();
+			float evenlySpacedPointsAccuracy = EditorGUILayout.FloatField( EVENLY_SPACED_POINTS_ACCURACY_TEXT, splines[0].evenlySpacedPointsAccuracy );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					Undo.RecordObject( splines[i], "Change Evenly Spaced Points Accuracy" );
+					splines[i].evenlySpacedPointsAccuracy = evenlySpacedPointsAccuracy;
+					SetSplineDirtyWithUndo( splines[i], "Change Evenly Spaced Points Accuracy", InternalDirtyFlags.All );
+				}
+
+				SceneView.RepaintAll();
+			}
+
+			EditorGUI.showMixedValue = HasMultipleDifferentValues( splines, ( s1, s2 ) => s1.pointCacheResolution == s2.pointCacheResolution );
+			EditorGUI.BeginChangeCheck();
+			int pointCacheResolution = EditorGUILayout.IntField( POINT_CACHE_RESOLUTION_TEXT, splines[0].pointCacheResolution );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				for( int i = 0; i < splines.Length; i++ )
+				{
+					Undo.RecordObject( splines[i], "Change Point Cache Resolution" );
+					splines[i].pointCacheResolution = pointCacheResolution;
+					SetSplineDirtyWithUndo( splines[i], "Change Point Cache Resolution", InternalDirtyFlags.All );
+				}
+
+				SceneView.RepaintAll();
+			}
+
 			EditorGUI.showMixedValue = false;
+
+			EditorGUI.BeginChangeCheck();
+			bool showEvenlySpacedPoints = EditorGUILayout.Toggle( "Visualize Evenly Spaced Points", BezierSettings.ShowEvenlySpacedPoints );
+			if( EditorGUI.EndChangeCheck() )
+			{
+				BezierSettings.ShowEvenlySpacedPoints = showEvenlySpacedPoints;
+				SceneView.RepaintAll();
+			}
+
+			if( showEvenlySpacedPoints )
+			{
+				EditorGUI.indentLevel++;
+
+				EditorGUI.BeginChangeCheck();
+				Color evenlySpacedPointsColor = EditorGUILayout.ColorField( "Color", BezierSettings.EvenlySpacedPointsColor );
+				if( EditorGUI.EndChangeCheck() )
+				{
+					BezierSettings.EvenlySpacedPointsColor = evenlySpacedPointsColor;
+					SceneView.RepaintAll();
+				}
+
+				EditorGUI.BeginChangeCheck();
+				float evenlySpacedPointsSize = EditorGUILayout.FloatField( "Size", BezierSettings.EvenlySpacedPointsSize );
+				if( EditorGUI.EndChangeCheck() )
+				{
+					BezierSettings.EvenlySpacedPointsSize = evenlySpacedPointsSize;
+					SceneView.RepaintAll();
+				}
+
+				EditorGUI.indentLevel--;
+			}
 
 			EditorGUILayout.Space();
 

@@ -206,7 +206,6 @@ namespace BezierSolution.Extras
 				for( int i = 0; i < selection.Length; i++ )
 				{
 					BezierSpline spline = selection[i].spline;
-
 					if( spline )
 					{
 						BezierPoint[] points = selection[i].points;
@@ -266,6 +265,15 @@ namespace BezierSolution.Extras
 			// When in point insertion mode, handles aren't drawn and BezierPoint gizmos must be drawn immediately
 			if( e.alt || !e.control || BezierUtils.QuickEditSplineMode )
 				BezierUtils.DrawBezierPoint( point, point.index + 1, true );
+
+			if( BezierSettings.ShowEvenlySpacedPoints )
+			{
+				if( point == allPoints[0] )
+				{
+					for( int i = 0; i < allSplines.Length; i++ )
+						BezierUtils.DrawSplineEvenlySpacedPoints( allSplines[i] );
+				}
+			}
 
 			if( BezierUtils.QuickEditSplineMode )
 			{

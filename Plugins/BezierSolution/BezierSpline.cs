@@ -131,7 +131,7 @@ namespace BezierSolution
 			get
 			{
 				if( m_evenlySpacedPoints == null )
-					m_evenlySpacedPoints = CalculateEvenlySpacedPoints();
+					m_evenlySpacedPoints = CalculateEvenlySpacedPoints( m_evenlySpacedPointsResolution, m_evenlySpacedPointsAccuracy );
 
 				return m_evenlySpacedPoints;
 			}
@@ -143,9 +143,66 @@ namespace BezierSolution
 			get
 			{
 				if( m_pointCache == null )
-					m_pointCache = GeneratePointCache();
+					m_pointCache = GeneratePointCache( resolution: m_pointCacheResolution );
 
 				return m_pointCache;
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		private float m_evenlySpacedPointsResolution = 10f;
+		public float evenlySpacedPointsResolution
+		{
+			get { return m_evenlySpacedPointsResolution; }
+			set
+			{
+				value = Mathf.Clamp( value, 1f, 999f );
+
+				if( m_evenlySpacedPointsResolution != value )
+				{
+					m_evenlySpacedPointsResolution = value;
+					m_evenlySpacedPoints = null;
+
+					dirtyFlags = InternalDirtyFlags.All;
+				}
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		private float m_evenlySpacedPointsAccuracy = 3f;
+		public float evenlySpacedPointsAccuracy
+		{
+			get { return m_evenlySpacedPointsAccuracy; }
+			set
+			{
+				value = Mathf.Clamp( value, 1f, 999f );
+
+				if( m_evenlySpacedPointsAccuracy != value )
+				{
+					m_evenlySpacedPointsAccuracy = value;
+					m_evenlySpacedPoints = null;
+
+					dirtyFlags = InternalDirtyFlags.All;
+				}
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		private int m_pointCacheResolution = 100;
+		public int pointCacheResolution
+		{
+			get { return m_pointCacheResolution; }
+			set
+			{
+				value = Mathf.Clamp( value, 10, 10000 );
+
+				if( m_pointCacheResolution != value )
+				{
+					m_pointCacheResolution = value;
+					m_pointCache = null;
+
+					dirtyFlags = InternalDirtyFlags.All;
+				}
 			}
 		}
 

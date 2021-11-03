@@ -55,6 +55,9 @@ namespace BezierSolution.Extras
 			for( int i = 0; i < spline.Count; i++ )
 				BezierUtils.DrawBezierPoint( spline[i], i + 1, false );
 
+			if( BezierSettings.ShowEvenlySpacedPoints )
+				BezierUtils.DrawSplineEvenlySpacedPoints( spline );
+
 			if( BezierUtils.QuickEditSplineMode )
 			{
 				// Execute quick edit mode's scene GUI only once (otherwise things can get ugly when multiple splines are selected)
