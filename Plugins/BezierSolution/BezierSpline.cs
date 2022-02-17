@@ -620,9 +620,9 @@ namespace BezierSolution
 			{
 				// 2nd conditions isn't 'else if' because in rare occasions, floating point precision issues may arise; e.g. for normalizedT = -0.0000000149,
 				// incrementing the value by 1 results in perfect 1.0000000000 with no mantissa
-				if( normalizedT < 0f )
+				while ( normalizedT < 0f )
 					normalizedT += 1f;
-				if( normalizedT >= 1f )
+				while ( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
@@ -662,9 +662,9 @@ namespace BezierSolution
 			}
 			else
 			{
-				if( normalizedT < 0f )
+				while ( normalizedT < 0f )
 					normalizedT += 1f;
-				if( normalizedT >= 1f )
+				while ( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
