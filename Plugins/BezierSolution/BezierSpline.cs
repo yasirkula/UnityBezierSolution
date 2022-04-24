@@ -618,9 +618,9 @@ namespace BezierSolution
 			}
 			else
 			{
-				while ( normalizedT < 0f )
+				while( normalizedT < 0f )
 					normalizedT += 1f;
-				while ( normalizedT >= 1f )
+				while( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
@@ -660,9 +660,9 @@ namespace BezierSolution
 			}
 			else
 			{
-				while ( normalizedT < 0f )
+				while( normalizedT < 0f )
 					normalizedT += 1f;
-				while ( normalizedT >= 1f )
+				while( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
@@ -698,9 +698,9 @@ namespace BezierSolution
 			}
 			else
 			{
-				while ( normalizedT < 0f )
+				while( normalizedT < 0f )
 					normalizedT += 1f;
-				while ( normalizedT >= 1f )
+				while( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
@@ -754,9 +754,9 @@ namespace BezierSolution
 			}
 			else
 			{
-				while ( normalizedT < 0f )
+				while( normalizedT < 0f )
 					normalizedT += 1f;
-				while ( normalizedT >= 1f )
+				while( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
@@ -813,9 +813,9 @@ namespace BezierSolution
 			}
 			else
 			{
-				while ( normalizedT < 0f )
+				while( normalizedT < 0f )
 					normalizedT += 1f;
-				while ( normalizedT >= 1f )
+				while( normalizedT >= 1f )
 					normalizedT -= 1f;
 			}
 
