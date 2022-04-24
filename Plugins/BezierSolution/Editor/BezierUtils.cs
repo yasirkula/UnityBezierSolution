@@ -546,7 +546,7 @@ namespace BezierSolution.Extras
 
 			if( QuickEditSplineMode )
 			{
-				if( e.alt || e.control )
+				if( e.alt || e.control || e.command )
 					Handles.DotHandleCap( 0, point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, EventType.Repaint );
 				else if( !e.shift )
 				{
@@ -596,11 +596,11 @@ namespace BezierSolution.Extras
 					}
 				}
 			}
-			else if( e.alt || e.button > 0 || ( isSelected && !e.control ) )
+			else if( e.alt || e.button > 0 || ( isSelected && !e.control && !e.command ) )
 				Handles.DotHandleCap( 0, point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, EventType.Repaint );
 			else if( Handles.Button( point.position, Quaternion.identity, HandleUtility.GetHandleSize( point.position ) * size, size, Handles.DotHandleCap ) )
 			{
-				if( !e.shift && !e.control )
+				if( !e.shift && !e.control && !e.command )
 					Selection.activeTransform = point.transform;
 				else
 				{
@@ -716,7 +716,7 @@ namespace BezierSolution.Extras
 			EditorGUI.DropShadowLabel( multiEditTipRect, QUICK_EDIT_MODE_TEXT, style );
 			Handles.EndGUI();
 
-			if( splines.Length == 0 || e.alt || !e.control || GUIUtility.hotControl != 0 )
+			if( splines.Length == 0 || e.alt || ( !e.control && !e.command ) || GUIUtility.hotControl != 0 )
 				return;
 
 			if( !e.shift )

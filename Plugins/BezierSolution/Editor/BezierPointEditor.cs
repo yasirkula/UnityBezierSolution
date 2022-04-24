@@ -263,7 +263,7 @@ namespace BezierSolution.Extras
 			// When Control key is pressed, BezierPoint gizmos should be drawn on top of Transform handles in order to allow selecting/deselecting points
 			// If Alt key is pressed, Transform handles aren't drawn at all, so BezierPoint gizmos can be drawn immediately
 			// When in point insertion mode, handles aren't drawn and BezierPoint gizmos must be drawn immediately
-			if( e.alt || !e.control || BezierUtils.QuickEditSplineMode )
+			if( e.alt || ( !e.control && !e.command ) || BezierUtils.QuickEditSplineMode )
 				BezierUtils.DrawBezierPoint( point, point.index + 1, true );
 
 			if( BezierSettings.ShowEvenlySpacedPoints )
@@ -568,7 +568,7 @@ namespace BezierSolution.Extras
 					break;
 			}
 
-			if( e.control )
+			if( e.control || e.command )
 				BezierUtils.DrawBezierPoint( point, point.index + 1, true );
 		}
 
