@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 
 namespace BezierSolution.Extras
@@ -367,6 +368,23 @@ namespace BezierSolution.Extras
 			{
 				m_moveMultiplePointsInOppositeDirections = value;
 				EditorPrefs.SetBool( "BezierSolution_OppositeTransformation", value );
+			}
+		}
+
+		private static QuickEditModePointPlacement? m_quickEditPointPlacement = null;
+		public static QuickEditModePointPlacement QuickEditPointPlacement
+		{
+			get
+			{
+				if( m_quickEditPointPlacement == null )
+					m_quickEditPointPlacement = (QuickEditModePointPlacement) EditorPrefs.GetInt( "BezierSolution_QuickEditPointPlacement", (int) QuickEditModePointPlacement.SceneGeometry );
+
+				return m_quickEditPointPlacement.Value;
+			}
+			set
+			{
+				m_quickEditPointPlacement = value;
+				EditorPrefs.SetInt( "BezierSolution_QuickEditPointPlacement", (int) value );
 			}
 		}
 
