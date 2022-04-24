@@ -169,9 +169,9 @@ namespace BezierSolution
 				}
 				else
 				{
-					if( normalizedT < 0f )
+					while( normalizedT < 0f )
 						normalizedT += 1f;
-					if( normalizedT >= 1f )
+					while( normalizedT >= 1f )
 						normalizedT -= 1f;
 				}
 
@@ -228,9 +228,9 @@ namespace BezierSolution
 				}
 				else
 				{
-					if( percentage < 0f )
+					while( percentage < 0f )
 						percentage += 1f;
-					if( percentage >= 1f )
+					while( percentage >= 1f )
 						percentage -= 1f;
 				}
 
@@ -256,9 +256,9 @@ namespace BezierSolution
 				}
 				else
 				{
-					if( percentage < 0f )
+					while( percentage < 0f )
 						percentage += 1f;
-					if( percentage >= 1f )
+					while( percentage >= 1f )
 						percentage -= 1f;
 				}
 
