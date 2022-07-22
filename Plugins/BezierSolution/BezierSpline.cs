@@ -75,6 +75,9 @@ namespace BezierSolution
 				}
 			}
 		}
+		[HideInInspector] private Vector3[] m_rhs;
+		[HideInInspector] private Vector3[] m_controlPoints;
+		[HideInInspector] private float[] m_tmp;
 
 		[SerializeField, HideInInspector]
 		[UnityEngine.Serialization.FormerlySerializedAs( "Internal_AutoCalculateNormals" )]
@@ -1048,57 +1051,58 @@ namespace BezierSolution
 				return;
 			}
 
-			Vector3[] rhs;
-			if( m_loop )
-				rhs = new Vector3[n + 1];
-			else
-				rhs = new Vector3[n];
+			int rhsCount = m_loop ? n + 1 : n;
+			if( m_rhs == null || m_rhs.Length != rhsCount )
+				m_rhs = new Vector3[rhsCount];
+				
 
 			for( int i = 1; i < n - 1; i++ )
-				rhs[i] = 4 * endPoints[i].position + 2 * endPoints[i + 1].position;
+				m_rhs[i] = 4 * endPoints[i].position + 2 * endPoints[i + 1].position;
 
-			rhs[0] = endPoints[0].position + 2 * endPoints[1].position;
+			m_rhs[0] = endPoints[0].position + 2 * endPoints[1].position;
 
 			if( !m_loop )
-				rhs[n - 1] = ( 8 * endPoints[n - 1].position + endPoints[n].position ) * 0.5f;
+				m_rhs[n - 1] = ( 8 * endPoints[n - 1].position + endPoints[n].position ) * 0.5f;
 			else
 			{
-				rhs[n - 1] = 4 * endPoints[n - 1].position + 2 * endPoints[n].position;
-				rhs[n] = ( 8 * endPoints[n].position + endPoints[0].position ) * 0.5f;
+				m_rhs[n - 1] = 4 * endPoints[n - 1].position + 2 * endPoints[n].position;
+				m_rhs[n] = ( 8 * endPoints[n].position + endPoints[0].position ) * 0.5f;
 			}
 
 			// Get first control points
-			int rhsLength = rhs.Length;
-			Vector3[] controlPoints = new Vector3[rhsLength]; // Solution vector
-			float[] tmp = new float[rhsLength]; // Temp workspace
+			int rhsLength = m_rhs.Length;
+			if( m_controlPoints == null || rhsLength != m_controlPoints.Length )
+				m_controlPoints = new Vector3[rhsLength]; // Solution vector
+			if( m_tmp == null || rhsLength != m_tmp.Length )
+				m_tmp = new float[rhsLength]; // Temp workspace
 
 			float b = 2f;
-			controlPoints[0] = rhs[0] / b;
+			m_controlPoints[0] = m_rhs[0] / b;
 			for( int i = 1; i < rhsLength; i++ ) // Decomposition and forward substitution
 			{
 				float val = 1f / b;
-				tmp[i] = val;
+				m_tmp[i] = val;
 				b = ( i < rhsLength - 1 ? 4f : 3.5f ) - val;
-				controlPoints[i] = ( rhs[i] - controlPoints[i - 1] ) / b;
+				m_controlPoints[i] = ( m_rhs[i] - m_controlPoints[i - 1] ) / b;
 			}
 
 			for( int i = 1; i < rhsLength; i++ )
-				controlPoints[rhsLength - i - 1] -= tmp[rhsLength - i] * controlPoints[rhsLength - i]; // Backsubstitution
+				m_controlPoints[rhsLength - i - 1] -= m_tmp[rhsLength - i] * m_controlPoints[rhsLength - i]; // Back substitution
 
 			for( int i = 0; i < n; i++ )
 			{
 				// First control point
-				endPoints[i].followingControlPointPosition = controlPoints[i];
+				endPoints[i].followingControlPointPosition = m_controlPoints[i];
 
 				if( m_loop )
-					endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - controlPoints[i + 1];
+					endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - m_controlPoints[i + 1];
 				else
 				{
 					// Second control point
 					if( i < n - 1 )
-						endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - controlPoints[i + 1];
+						endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - m_controlPoints[i + 1];
 					else
-						endPoints[i + 1].precedingControlPointPosition = ( endPoints[n].position + controlPoints[n - 1] ) * 0.5f;
+						endPoints[i + 1].precedingControlPointPosition = ( endPoints[n].position + m_controlPoints[n - 1] ) * 0.5f;
 				}
 			}
 
