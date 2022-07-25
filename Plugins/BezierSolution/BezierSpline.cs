@@ -75,6 +75,10 @@ namespace BezierSolution
 				}
 			}
 		}
+		
+		private Vector3[] autoConstructedSplineRhs;
+		private Vector3[] autoConstructedSplineControlPoints;
+		private float[] autoConstructedSplineTmp;
 
 		[SerializeField, HideInInspector]
 		[UnityEngine.Serialization.FormerlySerializedAs( "Internal_AutoCalculateNormals" )]
@@ -1048,57 +1052,56 @@ namespace BezierSolution
 				return;
 			}
 
-			Vector3[] rhs;
-			if( m_loop )
-				rhs = new Vector3[n + 1];
-			else
-				rhs = new Vector3[n];
+			int rhsLength = m_loop ? n + 1 : n;
+			if( autoConstructedSplineRhs == null || autoConstructedSplineRhs.Length != rhsLength )
+				autoConstructedSplineRhs = new Vector3[rhsLength];
+			if( autoConstructedSplineControlPoints == null || rhsLength != autoConstructedSplineControlPoints.Length )
+				autoConstructedSplineControlPoints = new Vector3[rhsLength]; // Solution vector
+			if( autoConstructedSplineTmp == null || rhsLength != autoConstructedSplineTmp.Length )
+				autoConstructedSplineTmp = new float[rhsLength]; // Temp workspace
+				
 
 			for( int i = 1; i < n - 1; i++ )
-				rhs[i] = 4 * endPoints[i].position + 2 * endPoints[i + 1].position;
+				autoConstructedSplineRhs[i] = 4 * endPoints[i].position + 2 * endPoints[i + 1].position;
 
-			rhs[0] = endPoints[0].position + 2 * endPoints[1].position;
+			autoConstructedSplineRhs[0] = endPoints[0].position + 2 * endPoints[1].position;
 
 			if( !m_loop )
-				rhs[n - 1] = ( 8 * endPoints[n - 1].position + endPoints[n].position ) * 0.5f;
+				autoConstructedSplineRhs[n - 1] = ( 8 * endPoints[n - 1].position + endPoints[n].position ) * 0.5f;
 			else
 			{
-				rhs[n - 1] = 4 * endPoints[n - 1].position + 2 * endPoints[n].position;
-				rhs[n] = ( 8 * endPoints[n].position + endPoints[0].position ) * 0.5f;
+				autoConstructedSplineRhs[n - 1] = 4 * endPoints[n - 1].position + 2 * endPoints[n].position;
+				autoConstructedSplineRhs[n] = ( 8 * endPoints[n].position + endPoints[0].position ) * 0.5f;
 			}
 
 			// Get first control points
-			int rhsLength = rhs.Length;
-			Vector3[] controlPoints = new Vector3[rhsLength]; // Solution vector
-			float[] tmp = new float[rhsLength]; // Temp workspace
-
 			float b = 2f;
-			controlPoints[0] = rhs[0] / b;
+			autoConstructedSplineControlPoints[0] = autoConstructedSplineRhs[0] / b;
 			for( int i = 1; i < rhsLength; i++ ) // Decomposition and forward substitution
 			{
 				float val = 1f / b;
-				tmp[i] = val;
+				autoConstructedSplineTmp[i] = val;
 				b = ( i < rhsLength - 1 ? 4f : 3.5f ) - val;
-				controlPoints[i] = ( rhs[i] - controlPoints[i - 1] ) / b;
+				autoConstructedSplineControlPoints[i] = ( autoConstructedSplineRhs[i] - autoConstructedSplineControlPoints[i - 1] ) / b;
 			}
 
 			for( int i = 1; i < rhsLength; i++ )
-				controlPoints[rhsLength - i - 1] -= tmp[rhsLength - i] * controlPoints[rhsLength - i]; // Backsubstitution
+				autoConstructedSplineControlPoints[rhsLength - i - 1] -= autoConstructedSplineTmp[rhsLength - i] * autoConstructedSplineControlPoints[rhsLength - i]; // Back substitution
 
 			for( int i = 0; i < n; i++ )
 			{
 				// First control point
-				endPoints[i].followingControlPointPosition = controlPoints[i];
+				endPoints[i].followingControlPointPosition = autoConstructedSplineControlPoints[i];
 
 				if( m_loop )
-					endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - controlPoints[i + 1];
+					endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - autoConstructedSplineControlPoints[i + 1];
 				else
 				{
 					// Second control point
 					if( i < n - 1 )
-						endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - controlPoints[i + 1];
+						endPoints[i + 1].precedingControlPointPosition = 2 * endPoints[i + 1].position - autoConstructedSplineControlPoints[i + 1];
 					else
-						endPoints[i + 1].precedingControlPointPosition = ( endPoints[n].position + controlPoints[n - 1] ) * 0.5f;
+						endPoints[i + 1].precedingControlPointPosition = ( endPoints[n].position + autoConstructedSplineControlPoints[n - 1] ) * 0.5f;
 				}
 			}
 
