@@ -75,7 +75,7 @@ namespace BezierSolution
 				}
 			}
 		}
-		
+
 		private Vector3[] autoConstructedSplineRhs;
 		private Vector3[] autoConstructedSplineControlPoints;
 		private float[] autoConstructedSplineTmp;
@@ -1059,7 +1059,7 @@ namespace BezierSolution
 				autoConstructedSplineControlPoints = new Vector3[rhsLength]; // Solution vector
 			if( autoConstructedSplineTmp == null || rhsLength != autoConstructedSplineTmp.Length )
 				autoConstructedSplineTmp = new float[rhsLength]; // Temp workspace
-				
+
 
 			for( int i = 1; i < n - 1; i++ )
 				autoConstructedSplineRhs[i] = 4 * endPoints[i].position + 2 * endPoints[i + 1].position;
