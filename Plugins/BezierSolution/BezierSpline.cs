@@ -76,9 +76,9 @@ namespace BezierSolution
 			}
 		}
 		
-		[HideInInspector] private Vector3[] autoConstructedSplineRhs;
-		[HideInInspector] private Vector3[] autoConstructedSplineControlPoints;
-		[HideInInspector] private float[] autoConstructedSplineTmp;
+		private Vector3[] autoConstructedSplineRhs;
+		private Vector3[] autoConstructedSplineControlPoints;
+		private float[] autoConstructedSplineTmp;
 
 		[SerializeField, HideInInspector]
 		[UnityEngine.Serialization.FormerlySerializedAs( "Internal_AutoCalculateNormals" )]
