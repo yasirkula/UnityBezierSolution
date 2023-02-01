@@ -621,12 +621,7 @@ namespace BezierSolution
 					return endPoints[endPoints.Count - 1].position;
 			}
 			else
-			{
-				while( normalizedT < 0f )
-					normalizedT += 1f;
-				while( normalizedT >= 1f )
-					normalizedT -= 1f;
-			}
+				normalizedT = ( ( normalizedT % 1f ) + 1f ) % 1f;
 
 			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
@@ -663,12 +658,7 @@ namespace BezierSolution
 				}
 			}
 			else
-			{
-				while( normalizedT < 0f )
-					normalizedT += 1f;
-				while( normalizedT >= 1f )
-					normalizedT -= 1f;
-			}
+				normalizedT = ( ( normalizedT % 1f ) + 1f ) % 1f;
 
 			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
@@ -701,12 +691,7 @@ namespace BezierSolution
 					return endPoints[endPoints.Count - 1].normal;
 			}
 			else
-			{
-				while( normalizedT < 0f )
-					normalizedT += 1f;
-				while( normalizedT >= 1f )
-					normalizedT -= 1f;
-			}
+				normalizedT = ( ( normalizedT % 1f ) + 1f ) % 1f;
 
 			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
@@ -757,12 +742,7 @@ namespace BezierSolution
 					return endPoints[endPoints.Count - 1].extraData;
 			}
 			else
-			{
-				while( normalizedT < 0f )
-					normalizedT += 1f;
-				while( normalizedT >= 1f )
-					normalizedT -= 1f;
-			}
+				normalizedT = ( ( normalizedT % 1f ) + 1f ) % 1f;
 
 			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 
@@ -816,12 +796,7 @@ namespace BezierSolution
 					return new Segment( endPoints[endPoints.Count - 2], endPoints[endPoints.Count - 1], 1f );
 			}
 			else
-			{
-				while( normalizedT < 0f )
-					normalizedT += 1f;
-				while( normalizedT >= 1f )
-					normalizedT -= 1f;
-			}
+				normalizedT = ( ( normalizedT % 1f ) + 1f ) % 1f;
 
 			float t = normalizedT * ( m_loop ? endPoints.Count : ( endPoints.Count - 1 ) );
 

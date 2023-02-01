@@ -1,4 +1,4 @@
-= Bezier Solution =
+= Bezier Solution (v2.3.3) =
 
 Online documentation & example code available at: https://github.com/yasirkula/UnityBezierSolution
 E-mail: yasirkula@gmail.com

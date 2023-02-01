@@ -146,12 +146,7 @@ namespace BezierSolution
 						return 1f;
 				}
 				else
-				{
-					while( percentage < 0f )
-						percentage += 1f;
-					while( percentage >= 1f )
-						percentage -= 1f;
-				}
+					percentage = ( ( percentage % 1f ) + 1f ) % 1f;
 
 				float indexRaw = ( uniformNormalizedTs.Length - 1 ) * percentage;
 				int index = (int) indexRaw;
@@ -168,12 +163,7 @@ namespace BezierSolution
 						return 1f;
 				}
 				else
-				{
-					while( normalizedT < 0f )
-						normalizedT += 1f;
-					while( normalizedT >= 1f )
-						normalizedT -= 1f;
-				}
+					normalizedT = ( ( normalizedT % 1f ) + 1f ) % 1f;
 
 				// Perform binary search
 				int lowerBound = 0;
@@ -227,12 +217,7 @@ namespace BezierSolution
 						return extraDatas[extraDatas.Length - 1];
 				}
 				else
-				{
-					while( percentage < 0f )
-						percentage += 1f;
-					while( percentage >= 1f )
-						percentage -= 1f;
-				}
+					percentage = ( ( percentage % 1f ) + 1f ) % 1f;
 
 				float t = percentage * ( loop ? extraDatas.Length : ( extraDatas.Length - 1 ) );
 
@@ -255,12 +240,7 @@ namespace BezierSolution
 						return array[array.Length - 1];
 				}
 				else
-				{
-					while( percentage < 0f )
-						percentage += 1f;
-					while( percentage >= 1f )
-						percentage -= 1f;
-				}
+					percentage = ( ( percentage % 1f ) + 1f ) % 1f;
 
 				float t = percentage * ( loop ? array.Length : ( array.Length - 1 ) );
 
