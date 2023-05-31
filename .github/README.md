@@ -10,7 +10,7 @@
 
 **Video:** https://www.youtube.com/watch?v=OpniwcFwSY8
 
-**[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
+**[GitHub Sponsors ☕](https://github.com/sponsors/yasirkula)**
 
 ## ABOUT
 
