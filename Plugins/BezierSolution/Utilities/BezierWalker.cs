@@ -4,7 +4,7 @@ using UnityEngine.Events;
 namespace BezierSolution
 {
 	public enum TravelMode { Once = 0, Loop = 1, PingPong = 2 };
-	public enum LookAtMode { None = 0, Forward = 1, SplineExtraData = 2 }
+	public enum LookAtMode { None = 0, XForward = 3, YForward = 4, ZForward = 1, SplineExtraData = 2 }
 
 	public abstract class BezierWalker : MonoBehaviour
 	{
@@ -26,10 +26,17 @@ namespace BezierSolution
 			Quaternion targetRotation;
 			switch( lookAt )
 			{
-				case LookAtMode.Forward:
+				case LookAtMode.XForward:
+				case LookAtMode.YForward:
+				case LookAtMode.ZForward:
 				{
 					BezierSpline.Segment segment = Spline.GetSegmentAt( normalizedT );
 					targetRotation = Quaternion.LookRotation( MovingForward ? segment.GetTangent() : -segment.GetTangent(), segment.GetNormal() );
+					if( lookAt == LookAtMode.XForward )
+						targetRotation *= Quaternion.Euler( 0f, -90f, 0f );
+					else if( lookAt == LookAtMode.YForward )
+						targetRotation *= Quaternion.Euler( 0f, 90f, 90f );
+
 					break;
 				}
 				case LookAtMode.SplineExtraData: targetRotation = Spline.GetExtraData( normalizedT, extraDataLerpAsQuaternionFunction ); break;

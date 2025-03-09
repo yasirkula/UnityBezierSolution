@@ -28,7 +28,7 @@ namespace BezierSolution
 		public float movementLerpModifier = 10f;
 		public float rotationLerpModifier = 10f;
 
-		public LookAtMode lookAt = LookAtMode.Forward;
+		public LookAtMode lookAt = LookAtMode.ZForward;
 
 		private bool isGoingForward = true;
 		public override bool MovingForward
