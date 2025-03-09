@@ -1,12 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
 namespace BezierSolution.Extras
 {
-	public abstract class BezierWalkerEditor : Editor
+	public abstract class BezierWalkerEditor<T> : Editor where T : BezierWalker
 	{
-		protected Object[] walkers;
+		protected T[] walkers;
 
 		private bool simulateInEditor;
 		private double lastUpdateTime;
@@ -18,7 +19,7 @@ namespace BezierSolution.Extras
 
 		private void OnEnable()
 		{
-			walkers = targets;
+			walkers = Array.ConvertAll( targets, ( e ) => (T) e );
 
 			if( simulateInEditor )
 				StartSimulateInEditor();
@@ -75,9 +76,9 @@ namespace BezierSolution.Extras
 
 			for( int i = 0; i < walkers.Length; i++ )
 			{
-				initialPositions.Add( ( (Component) walkers[i] ).transform.position );
-				initialRotations.Add( ( (Component) walkers[i] ).transform.rotation );
-				initialNormalizedTs.Add( ( (BezierWalker) walkers[i] ).NormalizedT );
+				initialPositions.Add( walkers[i].transform.position );
+				initialRotations.Add( walkers[i].transform.rotation );
+				initialNormalizedTs.Add( walkers[i].NormalizedT );
 			}
 
 			hasInitialData = true;
@@ -89,9 +90,9 @@ namespace BezierSolution.Extras
 			{
 				if( walkers[i] )
 				{
-					( (Component) walkers[i] ).transform.position = initialPositions[i];
-					( (Component) walkers[i] ).transform.rotation = initialRotations[i];
-					( (BezierWalker) walkers[i] ).NormalizedT = initialNormalizedTs[i];
+					walkers[i].transform.position = initialPositions[i];
+					walkers[i].transform.rotation = initialRotations[i];
+					walkers[i].NormalizedT = initialNormalizedTs[i];
 				}
 			}
 		}
@@ -114,7 +115,7 @@ namespace BezierSolution.Extras
 		protected virtual void Simulate( float deltaTime )
 		{
 			for( int i = 0; i < walkers.Length; i++ )
-				( (BezierWalker) walkers[i] ).Execute( deltaTime );
+				walkers[i].Execute( deltaTime );
 		}
 	}
 }

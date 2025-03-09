@@ -4,7 +4,7 @@ namespace BezierSolution.Extras
 {
 	[CustomEditor( typeof( BezierWalkerWithSpeed ) )]
 	[CanEditMultipleObjects]
-	public class BezierWalkerWithSpeedEditor : BezierWalkerEditor
+	public class BezierWalkerWithSpeedEditor : BezierWalkerEditor<BezierWalkerWithSpeed>
 	{
 	}
 }

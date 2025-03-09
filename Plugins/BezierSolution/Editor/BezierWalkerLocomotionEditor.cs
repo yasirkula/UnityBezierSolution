@@ -6,7 +6,7 @@ namespace BezierSolution.Extras
 {
 	[CustomEditor( typeof( BezierWalkerLocomotion ) )]
 	[CanEditMultipleObjects]
-	public class BezierWalkerLocomotionEditor : BezierWalkerEditor
+	public class BezierWalkerLocomotionEditor : BezierWalkerEditor<BezierWalkerLocomotion>
 	{
 		private int tailSaveDataStartIndex;
 
@@ -17,7 +17,7 @@ namespace BezierSolution.Extras
 
 			for( int i = 0; i < walkers.Length; i++ )
 			{
-				List<Transform> tail = ( (BezierWalkerLocomotion) walkers[i] ).Tail;
+				List<Transform> tail = walkers[i].Tail;
 				for( int j = 0; j < tail.Count; j++ )
 				{
 					initialPositions.Add( tail[j].position );
@@ -35,7 +35,7 @@ namespace BezierSolution.Extras
 			{
 				if( walkers[i] )
 				{
-					List<Transform> tail = ( (BezierWalkerLocomotion) walkers[i] ).Tail;
+					List<Transform> tail = walkers[i].Tail;
 					for( int j = 0; j < tail.Count; j++, index++ )
 					{
 						tail[j].position = initialPositions[index];
@@ -48,7 +48,7 @@ namespace BezierSolution.Extras
 		protected override void Simulate( float deltaTime )
 		{
 			for( int i = 0; i < walkers.Length; i++ )
-				( (BezierWalkerLocomotion) walkers[i] ).walker.Execute( deltaTime );
+				walkers[i].walker.Execute( deltaTime );
 
 			base.Simulate( deltaTime );
 		}
