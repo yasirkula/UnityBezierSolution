@@ -29,7 +29,11 @@ namespace BezierSolution
 		public LookAtMode lookAt = LookAtMode.Forward;
 
 		private bool isGoingForward = true;
-		public override bool MovingForward { get { return ( speed > 0f ) == isGoingForward; } }
+		public override bool MovingForward
+		{
+			get { return ( speed >= 0f ) == isGoingForward; }
+			set { isGoingForward = ( speed >= 0f ) == value; }
+		}
 
 		public UnityEvent onPathCompleted = new UnityEvent();
 		private bool onPathCompletedCalledAt1 = false;

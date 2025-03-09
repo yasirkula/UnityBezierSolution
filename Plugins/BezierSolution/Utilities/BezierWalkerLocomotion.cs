@@ -27,7 +27,13 @@ namespace BezierSolution
 		public LookAtMode lookAt = LookAtMode.Forward;
 
 		public override BezierSpline Spline { get { return walker.Spline; } }
-		public override bool MovingForward { get { return walker.MovingForward; } }
+
+		public override bool MovingForward
+		{
+			get { return walker.MovingForward; }
+			set { walker.MovingForward = value; }
+		}
+
 		public override float NormalizedT
 		{
 			get { return walker.NormalizedT; }

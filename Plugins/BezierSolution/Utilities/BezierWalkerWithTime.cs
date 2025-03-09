@@ -31,7 +31,11 @@ namespace BezierSolution
 		public LookAtMode lookAt = LookAtMode.Forward;
 
 		private bool isGoingForward = true;
-		public override bool MovingForward { get { return isGoingForward; } }
+		public override bool MovingForward
+		{
+			get { return isGoingForward; }
+			set { isGoingForward = value; }
+		}
 
 		public UnityEvent onPathCompleted = new UnityEvent();
 		private bool onPathCompletedCalledAt1 = false;

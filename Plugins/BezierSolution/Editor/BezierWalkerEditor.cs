@@ -50,6 +50,9 @@ namespace BezierSolution.Extras
 		{
 			SaveInitialData();
 
+			for( int i = 0; i < walkers.Length; i++ )
+				walkers[i].MovingForward = true;
+
 			lastUpdateTime = EditorApplication.timeSinceStartup;
 			EditorApplication.update -= SimulateInEditor;
 			EditorApplication.update += SimulateInEditor;
