@@ -49,83 +49,11 @@ namespace BezierSolution
 		public override void Execute( float deltaTime )
 		{
 			float _normalizedT = highQuality ? spline.evenlySpacedPoints.GetNormalizedTAtPercentage( m_normalizedT ) : m_normalizedT;
-
 			transform.position = Vector3.Lerp( transform.position, spline.GetPoint( _normalizedT ), movementLerpModifier * deltaTime );
+			RotateTarget( transform, _normalizedT, lookAt, rotationLerpModifier * deltaTime );
 
-			if( lookAt == LookAtMode.Forward )
-			{
-				BezierSpline.Segment segment = spline.GetSegmentAt( _normalizedT );
-				Quaternion targetRotation;
-				if( isGoingForward )
-					targetRotation = Quaternion.LookRotation( segment.GetTangent(), segment.GetNormal() );
-				else
-					targetRotation = Quaternion.LookRotation( -segment.GetTangent(), segment.GetNormal() );
-
-				transform.rotation = Quaternion.Lerp( transform.rotation, targetRotation, rotationLerpModifier * deltaTime );
-			}
-			else if( lookAt == LookAtMode.SplineExtraData )
-				transform.rotation = Quaternion.Lerp( transform.rotation, spline.GetExtraData( _normalizedT, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
-
-			if( isGoingForward )
-			{
-				m_normalizedT += deltaTime / travelTime;
-
-				if( m_normalizedT > 1f )
-				{
-					if( travelMode == TravelMode.Once )
-						m_normalizedT = 1f;
-					else if( travelMode == TravelMode.Loop )
-						m_normalizedT -= 1f;
-					else
-					{
-						m_normalizedT = 2f - m_normalizedT;
-						isGoingForward = false;
-					}
-
-					if( !onPathCompletedCalledAt1 )
-					{
-						onPathCompletedCalledAt1 = true;
-#if UNITY_EDITOR
-						if( UnityEditor.EditorApplication.isPlaying )
-#endif
-							onPathCompleted.Invoke();
-					}
-				}
-				else
-				{
-					onPathCompletedCalledAt1 = false;
-				}
-			}
-			else
-			{
-				m_normalizedT -= deltaTime / travelTime;
-
-				if( m_normalizedT < 0f )
-				{
-					if( travelMode == TravelMode.Once )
-						m_normalizedT = 0f;
-					else if( travelMode == TravelMode.Loop )
-						m_normalizedT += 1f;
-					else
-					{
-						m_normalizedT = -m_normalizedT;
-						isGoingForward = true;
-					}
-
-					if( !onPathCompletedCalledAt0 )
-					{
-						onPathCompletedCalledAt0 = true;
-#if UNITY_EDITOR
-						if( UnityEditor.EditorApplication.isPlaying )
-#endif
-							onPathCompleted.Invoke();
-					}
-				}
-				else
-				{
-					onPathCompletedCalledAt0 = false;
-				}
-			}
+			m_normalizedT += ( isGoingForward ? deltaTime : -deltaTime ) / travelTime;
+			PostProcessMovement( travelMode, ref onPathCompletedCalledAt0, ref onPathCompletedCalledAt1, onPathCompleted );
 		}
 	}
 }

@@ -88,14 +88,7 @@ namespace BezierSolution
 				}
 
 				tailObject.position = Vector3.Lerp( tailObject.position, tailPosition, movementLerpModifier * deltaTime );
-
-				if( lookAt == LookAtMode.Forward )
-				{
-					BezierSpline.Segment segment = spline.GetSegmentAt( tailNormalizedT );
-					tailObject.rotation = Quaternion.Lerp( tailObject.rotation, Quaternion.LookRotation( forward ? segment.GetTangent() : -segment.GetTangent(), segment.GetNormal() ), rotationLerpModifier * deltaTime );
-				}
-				else if( lookAt == LookAtMode.SplineExtraData )
-					tailObject.rotation = Quaternion.Lerp( tailObject.rotation, spline.GetExtraData( tailNormalizedT, extraDataLerpAsQuaternionFunction ), rotationLerpModifier * deltaTime );
+				RotateTarget( tailObject, tailNormalizedT, lookAt, rotationLerpModifier * deltaTime );
 			}
 		}
 
